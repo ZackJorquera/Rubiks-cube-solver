@@ -1,3 +1,5 @@
+// TODO spell rubik's cube correctly
+
 use std::fmt;
 use std::ops;
 use rand;
@@ -107,6 +109,18 @@ pub enum Turn
     }
 }
 
+impl Default for Turn
+{
+    fn default() -> Self {
+            Turn::FaceBased {
+            face: Face::Up,
+            inv: false,
+            num_in: 0,
+            cube_size: 3
+        }
+    }
+}
+
 impl PartialEq for Turn
 {
     fn eq(&self, other: &Turn) -> bool
@@ -173,6 +187,52 @@ impl Turn
         }
     }
 
+    /// Changes the size of the cube to `new_cube_size`. This is needed because turns hold the size of the cube they are for.
+    /// The `index`/`num_in` of the turn is re-calculated relative to the center of the cube (so `index` remains the same).
+    /// Well return `Err(())` if any turn can't exist for a cube with the new cube size.
+    #[allow(dead_code)]
+    pub fn change_cube_size_hold_center(self, new_cube_size: usize) -> Result<Self, ()>
+    {
+        if let Turn::AxisBased{axis, pos_rot, index, ..} = self.into_axis_based()
+        {
+            if index.abs() as usize > new_cube_size/2
+            {
+                Err(())
+            }
+            else
+            {
+                Ok(Turn::AxisBased{axis, pos_rot, index, cube_size: new_cube_size})
+            }
+        }
+        else
+        {
+            unreachable!()
+        }
+    }
+
+    /// Changes the size of the cube to `new_cube_size`. This is needed because turns hold the size of the cube they are for.
+    /// The `index`/`num_in` of the turn is re-calculated relative to the faces (so `num_in` remains the same).
+    /// Well return `Err(())` if any turn can't exist for a cube with the new cube size.
+    #[allow(dead_code)]
+    pub fn change_cube_size_hold_face(self, new_cube_size: usize) -> Result<Self, ()>
+    {
+        if let Turn::FaceBased{face, inv, num_in, ..} = self.into_face_based()
+        {
+            if num_in >= new_cube_size/2
+            {
+                Err(())
+            }
+            else
+            {
+                Ok(Turn::FaceBased{face, inv, num_in, cube_size: new_cube_size})
+            }
+        }
+        else
+        {
+            unreachable!()
+        }
+    }
+
     /// inverts the turn
     pub fn invert(self) -> Self
     {
@@ -216,6 +276,8 @@ pub struct Move
 
 impl Move 
 {
+    // todo: assert that all turns have same cube size
+
     /// Will invert the move such that `M.invert() * M == M * M.invert()` is an identity.
     #[allow(dead_code)]
     pub fn invert(self) -> Self
@@ -230,7 +292,7 @@ impl Move
         self.turns.append(&mut other.turns);
     }
 
-    /// Will create a random move for an nxnxn rubix cube with `num_turns` turns.
+    /// Will create a random move for an nxnxn rubik's cube with `num_turns` turns.
     pub fn rnd_move(n: usize, num_turns: usize) -> Self
     {
         let mut rng = rand::thread_rng();
@@ -311,6 +373,53 @@ impl Move
             return true;
         }
     }
+
+    /// Changes the size of the cube to `new_cube_size` for each [`Turn`]. This is needed because [`Turn`]s hold the size of the cube they are for.
+    /// The `index`/`num_in` of the [`Turn`] is re-calculated relative to the center of the cube (so `index` remains the same) for the each turn in the move.
+    /// Any turn that can't exist for a cube with the new cube size will be removed from the move.
+    /// 
+    /// [`Turn`]: enum.Turn.html
+    #[allow(dead_code)]
+    pub fn change_cube_size_hold_center(self, new_cube_size: usize) -> Self
+    {
+        
+        // let mut turns: Vec<Turn> = vec![Turn::default(); self.turns.len()];
+        
+        // for (i, turn) in self.turns.into_iter().enumerate()
+        // {
+        //     turns[i] = turn.change_cube_size_hold_center(new_cube_size)?;
+        // }
+        // Will return `Err(())` if any turn can't exist for a cube with the new cube size.
+        //Ok(Move{turns})
+
+        Move{turns: self.turns.into_iter()
+            .map(|t| t.change_cube_size_hold_center(new_cube_size))
+            .filter(|t| matches!(t, Ok(_))).map(|t| t.unwrap()).collect()}
+
+    }
+    
+    /// Changes the size of the cube to `new_cube_size` for each [`Turn`]. This is needed because [`Turn`]s hold the size of the cube they are for.
+    /// The `index`/`num_in` of the [`Turn`] is re-calculated relative to the center of the cube (so `index` remains the same) for the each turn in the move.
+    /// Any turn that can't exist for a cube with the new cube size will be removed from the move.
+    /// 
+    /// [`Turn`]: enum.Turn.html
+    #[allow(dead_code)]
+    pub fn change_cube_size_hold_face(self, new_cube_size: usize) -> Self
+    {
+        // Well return `Err(())` if any turn can't exist for a cube with the new cube size.
+        // let mut turns: Vec<Turn> = vec![Turn::default(); self.turns.len()];
+        
+        // for (i, turn) in self.turns.into_iter().enumerate()
+        // {
+        //     turns[i] = turn.change_cube_size_hold_face(new_cube_size)?;
+        // }
+
+        // Ok(Move{turns})
+
+        Move{turns: self.turns.into_iter()
+            .map(|t| t.change_cube_size_hold_face(new_cube_size))
+            .filter(|t| matches!(t, Ok(_))).map(|t| t.unwrap()).collect()}
+    }
 }
 
 impl fmt::Display for Move
@@ -375,15 +484,15 @@ impl ops::Mul for Move
     }
 }
 
-/// Rubix Cube State
+/// Rubik's Cube State
 #[derive(Clone)]
-pub struct RubixCubeState
+pub struct RubiksCubeState
 {
     n: usize,
     data: Vec<Color>
 }
 
-impl PartialEq for RubixCubeState
+impl PartialEq for RubiksCubeState
 {
     fn eq(&self, other: &Self) -> bool
     {
@@ -404,7 +513,7 @@ impl PartialEq for RubixCubeState
     }
 }
 
-impl fmt::Debug for RubixCubeState {
+impl fmt::Debug for RubiksCubeState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result 
     {
         let mut cube_print_data = vec![];
@@ -479,7 +588,7 @@ impl fmt::Debug for RubixCubeState {
     }
 }
 
-impl RubixCubeState
+impl RubiksCubeState
 {
     /// String must be of size 6 * n^2. Each char will be a color (W,G,R,B,O,Y).
     /// The face order is ULFRBD. Each face is given left to right top to bottom.
@@ -488,7 +597,7 @@ impl RubixCubeState
     /// 
     /// ```rust
     /// let solved_3x3_state = "WWWWWWWWWGGGGGGGGGRRRRRRRRRBBBBBBBBBOOOOOOOOOYYYYYYYYY".to_owned();
-    /// let state = RubixCubeState::from_state_string(&solved_3x3_state);
+    /// let state = RubiksCubeState::from_state_string(&solved_3x3_state);
     /// println!("{:?}", state);
     /// ```
     /// Gives
@@ -522,32 +631,49 @@ impl RubixCubeState
                 _ => unimplemented!()
             }).collect();
         
-        Self{n, data}
+        RubiksCubeState{n, data}
     }
 
     /// Gives a nxnxn cube with where ULFRBD faces have the colors W,G,R,B,O,Y respectively.
     /// And calling [`is_solved`] will return true.
     /// 
-    /// [`is_solved`]: struct.RubixCubeState.html#method.is_solved
+    /// [`is_solved`]: struct.RubiksCubeState.html#method.is_solved
     pub fn std_solved_nxnxn(n: usize) -> Self
     {
         let data = vec![Color::White, Color::Green, Color::Red, Color::Blue, Color::Orange, Color::Yellow]
             .into_iter().fold(vec![], |mut v, c| {v.append(&mut vec![c; n*n]); v});
         
-        Self {n, data}
+        RubiksCubeState {n, data}
     }
 
     /// Produces a valid cube configuration by starting with [`std_solved_nxnxn`] and then making `num_turns` randoms turns.
     /// 
-    /// [`std_solved_nxnxn`]: struct.RubixCubeState.html#method.std_solved_nxnxn
+    /// [`std_solved_nxnxn`]: struct.RubiksCubeState.html#method.std_solved_nxnxn
     pub fn rnd_scramble(n: usize, num_turns: usize) -> (Self, Move)
     {
         let mut state = Self::std_solved_nxnxn(n);
 
-        let rubix_move = Move::rnd_move(n, num_turns);
-        state.do_move(&rubix_move);
+        let rubiks_move = Move::rnd_move(n, num_turns);
+        state.do_move(&rubiks_move);
 
-        return (state, rubix_move);
+        return (state, rubiks_move);
+    }
+
+    /// Creates a 2x2x2 cube from the corners of the `ref_state` cube.
+    pub fn from_corners_to_2x2x2(ref_state: &Self) -> Self
+    {
+        let data = ref_state.data.clone().chunks_exact(ref_state.n).enumerate() // we will get 6n chunks
+            .fold(vec![], |mut v, (i, c_row)| 
+            {
+                if i % ref_state.n == 0 || i % ref_state.n == ref_state.n-1
+                { 
+                    v.push(c_row[0]); 
+                    v.push(*c_row.last().unwrap()); 
+                }
+                    v
+            });
+        
+        RubiksCubeState {n: 2, data}
     }
 
     /// internal function used by `turn`
@@ -738,9 +864,9 @@ impl RubixCubeState
     }
 
     /// Will apply a move
-    pub fn do_move(&mut self, rubix_move: &Move)
+    pub fn do_move(&mut self, rubiks_move: &Move)
     {
-        for turn in &(*rubix_move).turns
+        for turn in &(*rubiks_move).turns
         {
             self.turn(*turn);
         }
@@ -791,6 +917,12 @@ impl RubixCubeState
 
         return true;
     }
+
+    /// returns `n` for a `nxnxn` rubik's cube
+    pub fn size(&self) -> usize
+    {
+        self.n
+    }
 }
 
 #[test]
@@ -803,11 +935,11 @@ fn test_is_solved()
     let solved_5x5_state = "WWWWWWWWWWWWWWWWWWWWWWWWWGGGGGGGGGGGGGGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRBBBBBBBBBBBBBBBBBBBBBBBBBOOOOOOOOOOOOOOOOOOOOOOOOOYYYYYYYYYYYYYYYYYYYYYYYYY".to_owned();
     let solved_5x5_state2 = "BBBBBBBBBBBBBBBBBBBBBBBBBOOOOOOOOOOOOOOOOOOOOOOOOOWWWWWWWWWWWWWWWWWWWWWWWWWRRRRRRRRRRRRRRRRRRRRRRRRRYYYYYYYYYYYYYYYYYYYYYYYYYGGGGGGGGGGGGGGGGGGGGGGGGG".to_owned();
 
-    assert_eq!(RubixCubeState::from_state_string(&solved_3x3_state).is_solved(), true);
-    assert_eq!(RubixCubeState::from_state_string(&solved_3x3_state2).is_solved(), true);
-    assert_eq!(RubixCubeState::from_state_string(&solved_4x4_state).is_solved(), true);
-    assert_eq!(RubixCubeState::from_state_string(&solved_5x5_state).is_solved(), true);
-    assert_eq!(RubixCubeState::from_state_string(&solved_5x5_state2).is_solved(), true);
+    assert_eq!(RubiksCubeState::from_state_string(&solved_3x3_state).is_solved(), true);
+    assert_eq!(RubiksCubeState::from_state_string(&solved_3x3_state2).is_solved(), true);
+    assert_eq!(RubiksCubeState::from_state_string(&solved_4x4_state).is_solved(), true);
+    assert_eq!(RubiksCubeState::from_state_string(&solved_5x5_state).is_solved(), true);
+    assert_eq!(RubiksCubeState::from_state_string(&solved_5x5_state2).is_solved(), true);
 
     let nsolved_3x3_state = "WWWWWWWWWGGGGGGGGGRRRRRRRRRYBBBBBBBBOOOOOOOOOYYYYYYYYY".to_owned();
     let nsolved_3x3_state2 = "WWWWWWWWWOOOOOOOOOGGGGGGGGGRRRRRRRRRBBBBBBBBBBYYYYYYYY".to_owned();
@@ -815,15 +947,15 @@ fn test_is_solved()
     let nsolved_5x5_state = "WWWWWWWWWWWWWWWWWWWWWWWWWGGGGGGGGGGGGGGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRBBBBBBBBBBBBBBBBBBBBBBBBBOOOOOOOOOOOOOOOOOOOOOOOOOWYYYYYYYYYYYYYYYYYYYYYYYY".to_owned();
     let nsolved_5x5_state2 = "BBBBBBBBBBBBBBBBBBBBBBBBBOOOOOOOOOOOOOOOOOOOOBOOOOWWWWWWWWWWWWWWWWWWWWWWWWWRRRRRRRRRRRRRRRRRRRRRRRRRYYYYYYYYYYYYYYYYYYYYYYYYYGGGGGGGGGGGGGGGGGGGGGGGGG".to_owned();
 
-    assert_eq!(RubixCubeState::from_state_string(&nsolved_3x3_state).is_solved(), false);
-    assert_eq!(RubixCubeState::from_state_string(&nsolved_3x3_state2).is_solved(), false);
-    assert_eq!(RubixCubeState::from_state_string(&nsolved_4x4_state).is_solved(), false);
-    assert_eq!(RubixCubeState::from_state_string(&nsolved_5x5_state).is_solved(), false);
-    assert_eq!(RubixCubeState::from_state_string(&nsolved_5x5_state2).is_solved(), false);
+    assert_eq!(RubiksCubeState::from_state_string(&nsolved_3x3_state).is_solved(), false);
+    assert_eq!(RubiksCubeState::from_state_string(&nsolved_3x3_state2).is_solved(), false);
+    assert_eq!(RubiksCubeState::from_state_string(&nsolved_4x4_state).is_solved(), false);
+    assert_eq!(RubiksCubeState::from_state_string(&nsolved_5x5_state).is_solved(), false);
+    assert_eq!(RubiksCubeState::from_state_string(&nsolved_5x5_state2).is_solved(), false);
 
     for n in 2..10
     {
-        assert_eq!(RubixCubeState::std_solved_nxnxn(n).is_solved(), true);
+        assert_eq!(RubiksCubeState::std_solved_nxnxn(n).is_solved(), true);
     }
 }
 
@@ -831,8 +963,8 @@ fn test_is_solved()
 fn test_turns()
 {
     let solved_3x3_state_str = "WWWWWWWWWOOOOOOOOOGGGGGGGGGRRRRRRRRRBBBBBBBBBYYYYYYYYY".to_owned();
-    let mut state_3x3 = RubixCubeState::from_state_string(&solved_3x3_state_str);
-    let mut state2_3x3 = RubixCubeState::from_state_string(&solved_3x3_state_str);
+    let mut state_3x3 = RubiksCubeState::from_state_string(&solved_3x3_state_str);
+    let mut state2_3x3 = RubiksCubeState::from_state_string(&solved_3x3_state_str);
     state_3x3.turn(Turn::FaceBased{face: Face::Down, inv: true, num_in:0, cube_size: 3});
     state_3x3.turn(Turn::FaceBased{face: Face::Back, inv: true, num_in:0, cube_size: 3});
     state_3x3.turn(Turn::FaceBased{face: Face::Up, inv: false,num_in: 0, cube_size: 3});
@@ -846,9 +978,9 @@ fn test_turns()
     state_3x3.turn(Turn::FaceBased{face: Face::Up, inv: true, num_in:0, cube_size: 3});
     state_3x3.turn(Turn::FaceBased{face: Face::Left, inv: true, num_in:0, cube_size: 3});
     let solved_3x3_state_with_turns = "OGWWWWWOYYGGBOOOOGRWGGGGROWORRYRRGRRBRBBBWBBWYBOYYYBYY".to_owned();
-    assert_eq!(state_3x3, RubixCubeState::from_state_string(&solved_3x3_state_with_turns));
+    assert_eq!(state_3x3, RubiksCubeState::from_state_string(&solved_3x3_state_with_turns));
 
-    let rubix_move = Move{turns: vec![Turn::FaceBased{face: Face::Down, inv: true, num_in:0, cube_size: 3},
+    let rubiks_move = Move{turns: vec![Turn::FaceBased{face: Face::Down, inv: true, num_in:0, cube_size: 3},
                                       Turn::FaceBased{face: Face::Back, inv: true, num_in:0, cube_size: 3},
                                       Turn::FaceBased{face: Face::Up, inv: false,num_in: 0, cube_size: 3},
                                       Turn::FaceBased{face: Face::Back, inv: false,num_in: 0, cube_size: 3},
@@ -861,9 +993,9 @@ fn test_turns()
                                       Turn::FaceBased{face: Face::Up, inv: true, num_in:0, cube_size: 3},
                                       Turn::FaceBased{face: Face::Left, inv: true, num_in:0, cube_size: 3}]};
 
-    state2_3x3.do_move(&rubix_move);
+    state2_3x3.do_move(&rubiks_move);
     
-    assert_eq!(state2_3x3, RubixCubeState::from_state_string(&solved_3x3_state_with_turns));
+    assert_eq!(state2_3x3, RubiksCubeState::from_state_string(&solved_3x3_state_with_turns));
 
     // TODO: more and better
 }
@@ -876,8 +1008,8 @@ fn test_move_inv()
 
     for _ in 0..10
     {
-        let (mut state, rubix_move) = RubixCubeState::rnd_scramble(15, 1000);
-        state.do_move(&rubix_move.invert());
+        let (mut state, rubiks_move) = RubiksCubeState::rnd_scramble(15, 1000);
+        state.do_move(&rubiks_move.invert());
 
         assert!(state.is_solved());
     }
@@ -894,23 +1026,23 @@ fn test_move_append()
 
     for _ in 0..10
     {
-        let mut state = RubixCubeState::std_solved_nxnxn(15);
-        let mut state2 = RubixCubeState::std_solved_nxnxn(15);
-        let rubix_move = Move::rnd_move(15, 1000);
-        state.do_move(&(rubix_move.clone().invert() * rubix_move.clone()));
-        state2.do_move(&(rubix_move.clone() * rubix_move.clone().invert()));
+        let mut state = RubiksCubeState::std_solved_nxnxn(15);
+        let mut state2 = RubiksCubeState::std_solved_nxnxn(15);
+        let rubiks_move = Move::rnd_move(15, 1000);
+        state.do_move(&(rubiks_move.clone().invert() * rubiks_move.clone()));
+        state2.do_move(&(rubiks_move.clone() * rubiks_move.clone().invert()));
 
         assert!(state.is_solved());
         assert!(state2.is_solved());
 
-        assert_eq!(rubix_move.clone(), move_empty.clone() * rubix_move.clone());
-        assert_eq!(rubix_move.clone(), rubix_move.clone() * move_empty.clone());
+        assert_eq!(rubiks_move.clone(), move_empty.clone() * rubiks_move.clone());
+        assert_eq!(rubiks_move.clone(), rubiks_move.clone() * move_empty.clone());
 
-        let rubix_move2 = Move::rnd_move(15, 1000);
-        let mut state3 = RubixCubeState::std_solved_nxnxn(15);
-        let mut state4 = RubixCubeState::std_solved_nxnxn(15);
-        state3.do_move(&(rubix_move.clone() * rubix_move2.clone()));
-        state4.do_move(&(rubix_move2.clone() * rubix_move.clone()));
+        let rubiks_move2 = Move::rnd_move(15, 1000);
+        let mut state3 = RubiksCubeState::std_solved_nxnxn(15);
+        let mut state4 = RubiksCubeState::std_solved_nxnxn(15);
+        state3.do_move(&(rubiks_move.clone() * rubiks_move2.clone()));
+        state4.do_move(&(rubiks_move2.clone() * rubiks_move.clone()));
 
         // This is not always try (but very likely)
         assert_ne!(state3, state4);
@@ -926,5 +1058,32 @@ fn test_turn_converts()
         assert_eq!(turn.into_face_based(), turn.into_axis_based().into_face_based());
         assert_eq!(turn.into_axis_based(), turn.into_face_based());
         assert_eq!(turn.into_face_based(), turn.into_axis_based());
+    }
+}
+
+#[test]
+fn test_change_cube_size()
+{
+    for n in 2..10
+    {
+        let (state_rnd, scram_move) = RubiksCubeState::rnd_scramble(n, 100);
+        let mut state_rnd_as_2x2x2 = RubiksCubeState::from_corners_to_2x2x2(&state_rnd);
+
+        let soln_move_orig_cube = scram_move.invert();
+        let soln_move_2x2x2 = soln_move_orig_cube.change_cube_size_hold_face(2);
+
+        state_rnd_as_2x2x2.do_move(&soln_move_2x2x2);
+
+        assert_eq!(state_rnd_as_2x2x2.is_solved(), true);
+        
+        let scram_move_2x2x2 = Move::rnd_move(2, 100);
+        let solve_move_orig = scram_move_2x2x2.clone().invert();
+        let scram_move_nxnxn = scram_move_2x2x2.change_cube_size_hold_center(n);
+        let solve_move_nxnxn = solve_move_orig.change_cube_size_hold_center(n);
+        let mut state_rnd = RubiksCubeState::std_solved_nxnxn(n);
+        state_rnd.do_move(&scram_move_nxnxn);
+        state_rnd.do_move(&solve_move_nxnxn);
+
+        assert_eq!(state_rnd.is_solved(), true);
     }
 }
