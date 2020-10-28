@@ -71,7 +71,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rubix-cube-solver"
+name = "rubiks-cube-solver"
 version = "0.1.0"
 dependencies = [
  "rand",

@@ -1,5 +1,4 @@
-// TODO spell rubik's cube correctly
-
+use core::hash::{Hash, Hasher};
 use std::fmt;
 use std::ops;
 use rand;
@@ -46,7 +45,7 @@ pub enum Axis
 }
 
 /// WGRBOY color
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum Color
 {
     White,
@@ -160,12 +159,12 @@ impl Turn
     {
         match self
         {
-            Turn::AxisBased{axis: Axis::X, pos_rot, index, cube_size} if index > 0 => Turn::FaceBased{face: Face::Left, inv: !pos_rot, num_in: cube_size/2 - index as usize, cube_size},
-            Turn::AxisBased{axis: Axis::X, pos_rot, index, cube_size} => Turn::FaceBased{face: Face::Right, inv: pos_rot, num_in: cube_size/2 - (-index) as usize, cube_size},
-            Turn::AxisBased{axis: Axis::Y, pos_rot, index, cube_size} if index > 0 => Turn::FaceBased{face: Face::Front, inv: !pos_rot, num_in: cube_size/2 - index as usize, cube_size},
-            Turn::AxisBased{axis: Axis::Y, pos_rot, index, cube_size} => Turn::FaceBased{face: Face::Back, inv: pos_rot, num_in: cube_size/2 - (-index) as usize, cube_size},
-            Turn::AxisBased{axis: Axis::Z, pos_rot, index, cube_size} if index > 0 => Turn::FaceBased{face: Face::Up, inv: !pos_rot, num_in: cube_size/2 - index as usize, cube_size},
-            Turn::AxisBased{axis: Axis::Z, pos_rot, index, cube_size} => Turn::FaceBased{face: Face::Down, inv: pos_rot, num_in: cube_size/2 - ((-index) as usize), cube_size},
+            Turn::AxisBased{axis: Axis::X, pos_rot, index, cube_size} if index > 0 => Turn::FaceBased{face: Face::Left, inv: pos_rot, num_in: cube_size/2 - index as usize, cube_size},
+            Turn::AxisBased{axis: Axis::X, pos_rot, index, cube_size} => Turn::FaceBased{face: Face::Right, inv: !pos_rot, num_in: cube_size/2 - (-index) as usize, cube_size},
+            Turn::AxisBased{axis: Axis::Y, pos_rot, index, cube_size} if index > 0 => Turn::FaceBased{face: Face::Front, inv: pos_rot, num_in: cube_size/2 - index as usize, cube_size},
+            Turn::AxisBased{axis: Axis::Y, pos_rot, index, cube_size} => Turn::FaceBased{face: Face::Back, inv: !pos_rot, num_in: cube_size/2 - (-index) as usize, cube_size},
+            Turn::AxisBased{axis: Axis::Z, pos_rot, index, cube_size} if index > 0 => Turn::FaceBased{face: Face::Up, inv: pos_rot, num_in: cube_size/2 - index as usize, cube_size},
+            Turn::AxisBased{axis: Axis::Z, pos_rot, index, cube_size} => Turn::FaceBased{face: Face::Down, inv: !pos_rot, num_in: cube_size/2 - ((-index) as usize), cube_size},
             
             t @ Turn::FaceBased{..} => t
         }
@@ -176,12 +175,12 @@ impl Turn
     {
         match self
         {
-            Turn::FaceBased{face: Face::Up, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::Z, pos_rot: !inv, index: cube_size as isize/2 - num_in as isize, cube_size},
-            Turn::FaceBased{face: Face::Left, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::X, pos_rot: !inv, index: cube_size as isize/2 - num_in as isize, cube_size},
-            Turn::FaceBased{face: Face::Front, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::Y, pos_rot: !inv, index: cube_size as isize/2 - num_in as isize, cube_size},
-            Turn::FaceBased{face: Face::Right, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::X, pos_rot: inv, index: - (cube_size as isize)/2 + num_in as isize, cube_size},
-            Turn::FaceBased{face: Face::Back, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::Y, pos_rot: inv, index: - (cube_size as isize)/2 + num_in as isize, cube_size},
-            Turn::FaceBased{face: Face::Down, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::Z, pos_rot: inv, index: - (cube_size as isize)/2 + num_in as isize, cube_size},
+            Turn::FaceBased{face: Face::Up, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::Z, pos_rot: inv, index: cube_size as isize/2 - num_in as isize, cube_size},
+            Turn::FaceBased{face: Face::Left, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::X, pos_rot: inv, index: cube_size as isize/2 - num_in as isize, cube_size},
+            Turn::FaceBased{face: Face::Front, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::Y, pos_rot: inv, index: cube_size as isize/2 - num_in as isize, cube_size},
+            Turn::FaceBased{face: Face::Right, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::X, pos_rot: !inv, index: - (cube_size as isize)/2 + num_in as isize, cube_size},
+            Turn::FaceBased{face: Face::Back, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::Y, pos_rot: !inv, index: - (cube_size as isize)/2 + num_in as isize, cube_size},
+            Turn::FaceBased{face: Face::Down, inv, num_in, cube_size} => Turn::AxisBased{axis: Axis::Z, pos_rot: !inv, index: - (cube_size as isize)/2 + num_in as isize, cube_size},
 
             t @ Turn::AxisBased{..} => t
         }
@@ -264,6 +263,12 @@ impl Turn
             else {unreachable!()}
         }
         else {unreachable!()}
+    }
+
+    /// Creates a move with just the one turn.
+    pub fn as_move(self) -> Move
+    {
+        Move{turns: vec![self]}
     }
 }
 
@@ -420,6 +425,11 @@ impl Move
             .map(|t| t.change_cube_size_hold_face(new_cube_size))
             .filter(|t| matches!(t, Ok(_))).map(|t| t.unwrap()).collect()}
     }
+
+    pub fn empty() -> Self
+    {
+        Move{turns: vec![]}
+    }
 }
 
 impl fmt::Display for Move
@@ -446,6 +456,7 @@ impl fmt::Display for Move
                     }
                     else
                     {
+                        // rotate until we find correct orientation
                         unreachable!()
                     }
                 }
@@ -484,12 +495,69 @@ impl ops::Mul for Move
     }
 }
 
+impl ops::MulAssign for Move
+{
+    fn mul_assign(&mut self, mut rhs: Self) {
+        self.append(&mut rhs);
+    }
+}
+
 /// Rubik's Cube State
 #[derive(Clone)]
 pub struct RubiksCubeState
 {
     n: usize,
     data: Vec<Color>
+}
+
+impl Hash for RubiksCubeState
+{
+    /// We dont care about the bottom back right cubie. Only works for 2x2x2 cubes
+    fn hash<H: Hasher>(&self, state: &mut H)
+    {
+        if self.n != 2 { unimplemented!() }
+
+        // we hash such that bottom left cube is b-o-y color
+        if self.data[15] == Color::Blue && self.data[18] == Color::Orange && self.data[23] == Color::Yellow
+        {
+            // oriented correctly
+            for c in &self.data
+            {
+                c.hash(state);
+            }
+            return;
+        }
+        else
+        {
+            let mut new_cube = self.clone();
+            // I know this try the same rotation multiple times but I don't care
+            for _ in 0..4
+            {
+                for _ in 0..4
+                {
+                    for _ in 0..4
+                    {
+                        if new_cube.data[15] == Color::Blue &&
+                           new_cube.data[18] == Color::Orange &&
+                           new_cube.data[23] == Color::Yellow
+                        {
+                            // oriented correctly
+                            for c in &new_cube.data
+                            {
+                                c.hash(state);
+                            }
+                            return;
+                        }
+                        new_cube.rotate_cube(Axis::Z);
+                    }
+                    new_cube.rotate_cube(Axis::Y);
+                }
+                new_cube.rotate_cube(Axis::X);
+            }
+        }
+
+        unimplemented!();
+    }
 }
 
 impl PartialEq for RubiksCubeState
@@ -512,6 +580,8 @@ impl PartialEq for RubiksCubeState
         return true;
     }
 }
+
+impl Eq for RubiksCubeState {}
 
 impl fmt::Debug for RubiksCubeState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result 
@@ -923,6 +993,95 @@ impl RubiksCubeState
     {
         self.n
     }
+
+    /// rotates all the faces on the cube, not a slice.
+    /// Rotates in teh positive direction.
+    pub fn rotate_cube(&mut self, axis: Axis)
+    {
+        let nn = self.n * self.n;
+        match axis 
+        {
+            Axis::X =>
+            {
+                self.rotate_face(Face::Back, false);
+                self.rotate_face(Face::Back, false);
+
+                self.rotate_face(Face::Right, false);
+                self.rotate_face(Face::Left, true);
+
+                for i in 0..nn
+                {
+                    let temp = self.data[i];
+                    self.data[i] = self.data[2*nn + i];
+                    self.data[2*nn + i] = self.data[5*nn + i];
+                    self.data[5*nn + i] = self.data[4*nn + i];
+                    self.data[4*nn + i] = temp;
+                }
+
+                self.rotate_face(Face::Back, false);
+                self.rotate_face(Face::Back, false);
+            },
+            Axis::Y =>
+            {
+                self.rotate_face(Face::Back, false);
+                self.rotate_face(Face::Front, true);
+
+                for i in 0..nn
+                {
+                    let temp = self.data[i];
+                    self.data[i] = self.data[3*nn + i];
+                    self.data[3*nn + i] = self.data[5*nn + i];
+                    self.data[5*nn + i] = self.data[1*nn + i];
+                    self.data[1*nn + i] = temp;
+                }
+
+                self.rotate_face(Face::Up, true);
+                self.rotate_face(Face::Left, true);
+                self.rotate_face(Face::Down, true);
+                self.rotate_face(Face::Right, true);
+            },
+            Axis::Z =>
+            {
+                self.rotate_face(Face::Down, false);
+                self.rotate_face(Face::Up, true);
+
+                for i in 0..nn
+                {
+                    let temp = self.data[1*nn + i];
+                    self.data[1*nn + i] = self.data[4*nn + i];
+                    self.data[4*nn + i] = self.data[3*nn + i];
+                    self.data[3*nn + i] = self.data[2*nn + i];
+                    self.data[2*nn + i] = temp;
+                }
+            },
+        }
+    }
+
+    /// TODO: i don't want to have this
+    pub fn rotate_to_normal_2x2x2(&mut self)
+    {
+        if self.n != 2 {return};
+
+        // I know this try the same rotation multiple times but I don't care
+        for _ in 0..4
+        {
+            for _ in 0..4
+            {
+                for _ in 0..4
+                {
+                    if self.data[15] == Color::Blue &&
+                        self.data[18] == Color::Orange &&
+                        self.data[23] == Color::Yellow
+                    {
+                        return;
+                    }
+                    self.rotate_cube(Axis::Z);
+                }
+                self.rotate_cube(Axis::Y);
+            }
+            self.rotate_cube(Axis::X);
+        }
+    }
 }
 
 #[test]
@@ -1003,7 +1162,7 @@ fn test_turns()
 #[test]
 fn test_move_inv()
 {
-    let move_empty = Move{turns: vec![]};
+    let move_empty = Move::empty();
     assert_eq!(move_empty, move_empty.clone().invert());
 
     for _ in 0..10
@@ -1018,8 +1177,8 @@ fn test_move_inv()
 #[test]
 fn test_move_append()
 {
-    let move_empty = Move{turns: vec![]};
-    let move_empty2 = Move{turns: vec![]};
+    let move_empty = Move::empty();
+    let move_empty2 = Move::empty();
 
     // mult op does the append (order matters)
     assert_eq!(move_empty, move_empty.clone() * move_empty2);
@@ -1085,5 +1244,69 @@ fn test_change_cube_size()
         state_rnd.do_move(&solve_move_nxnxn);
 
         assert_eq!(state_rnd.is_solved(), true);
+    }
+}
+
+#[test]
+fn test_rotate_cube()
+{
+    for n in (1..10).map(|n| n*2)
+    {
+        let (mut state_rnd, _scram_move) = RubiksCubeState::rnd_scramble(n, 1000);
+        let mut state_rnd2 = state_rnd.clone();
+        let mut state_rnd3 = state_rnd.clone();
+        let mut state_rnd4 = state_rnd.clone();
+        let mut state_rnd5 = state_rnd.clone();
+        let mut state_rnd6 = state_rnd.clone();
+
+        let turn_move = Move{turns: (-(n as isize)/2..=(n as isize)/2).filter(|i| *i != 0).map(|i| Turn::AxisBased{axis: Axis::X, pos_rot: true, index: i, cube_size: n}).collect()};
+        
+        state_rnd.do_move(&turn_move);
+        state_rnd2.rotate_cube(Axis::X);
+        
+
+        let turn_move2 = Move{turns: (-(n as isize)/2..=(n as isize)/2).filter(|i| *i != 0).map(|i| Turn::AxisBased{axis: Axis::Y, pos_rot: true, index: i, cube_size: n}).collect()};
+        
+        state_rnd3.do_move(&turn_move2);
+        state_rnd4.rotate_cube(Axis::Y);
+        
+
+        let turn_move3 = Move{turns: (-(n as isize)/2..=(n as isize)/2).filter(|i| *i != 0).map(|i| Turn::AxisBased{axis: Axis::Z, pos_rot: true, index: i, cube_size: n}).collect()};
+        
+        state_rnd5.do_move(&turn_move3);
+        state_rnd6.rotate_cube(Axis::Z);
+
+        assert_eq!(state_rnd, state_rnd2);
+        assert_eq!(state_rnd3, state_rnd4);
+        assert_eq!(state_rnd5, state_rnd6);
+    }
+
+    // TODO: try odd sized cubes
+}
+
+#[test]
+fn test_hash()
+{
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..100
+    {
+        let (state_rnd, _scram_move) = RubiksCubeState::rnd_scramble(2, 1000);
+        let mut state_rnd2 = state_rnd.clone();
+
+        let x_rots = rng.gen_range(0, 4);
+        let y_rots = rng.gen_range(0, 4);
+        let z_rots = rng.gen_range(0, 4);
+
+        for _ in 0..x_rots {state_rnd2.rotate_cube(Axis::X);}
+        for _ in 0..y_rots {state_rnd2.rotate_cube(Axis::Y);}
+        for _ in 0..z_rots {state_rnd2.rotate_cube(Axis::Z);}
+
+        let mut hasher1 = DefaultHasher::new();
+        state_rnd.hash(&mut hasher1);
+        let mut hasher2 = DefaultHasher::new();
+        state_rnd2.hash(&mut hasher2);
+
+        assert_eq!(hasher1.finish(), hasher2.finish());
     }
 }
