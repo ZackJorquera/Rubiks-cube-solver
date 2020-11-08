@@ -1,4 +1,5 @@
 use core::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::ops;
 use rand;
@@ -684,6 +685,7 @@ impl RubiksCubeState
     /// ```
     pub fn from_state_string(s: &String) -> Self
     {
+        // TODO: return result
         let len = s.len();
         assert_eq!(len % 6, 0);
         assert_eq!(f64::sqrt(len as f64/6.0).floor().powi(2) as usize, len / 6);

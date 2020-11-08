@@ -399,6 +399,10 @@ impl RubiksCubeSolver
         return (false, None);
     }
 
+    pub fn borrow_state(&'_ self) -> &'_ rubiks::RubiksCubeState
+    {
+        &self.state
+    }
 
     #[allow(dead_code)]
     pub fn solve_best_approximation(&self) -> (bool, Option<rubiks::Move>)
@@ -465,8 +469,8 @@ fn encode_bit_strings()
         }
         let z_m_i = rubiks::Turn::AxisBased{
                     axis: rubiks::Axis::Z, pos_rot: true, index: (m+i+1) as isize, cube_size: s}.as_move();
-        
-        a_i.clone().invert() * z_m_i * a_i
+
+        a_i.clone() * z_m_i * a_i.invert()
     }).collect();
 
     let mut state = rubiks::RubiksCubeState::std_solved_nxnxn(s);
@@ -481,24 +485,30 @@ fn encode_bit_strings()
         }
     }
 
-    state.do_move(&a_1);
-    for bi in &bs
+    let mut tb = rubiks::Move::empty();
+    let mut t = rubiks::Move::empty();
+
+    for bi in bs.clone().into_iter().rev() // rev doesn't matter, all bis commute
     { 
-        println!("{}", bi);
-        state.do_move(bi);
+        //println!("{}", bi);
+        tb *= bi;
     }
 
-    println!("{:?}", state);
+    t = tb * a_1;
 
-    let soln = rubiks::Move{turns: vec![rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:8, cube_size: s},
-                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: false, index:1, cube_size: s},
-                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:7, cube_size: s},
-                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: false, index:2, cube_size: s},
-                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:5, cube_size: s},
-                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: false, index:3, cube_size: s},
-                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:6, cube_size: s},
+    state.do_move(&t.clone());
+
+    println!("{}\n{:?}", t,state);
+
+    let soln = rubiks::Move{turns: vec![rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:4, cube_size: s},
                                         rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: true,  index:1, cube_size: s},
-                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:4, cube_size: s}]};
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:6, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: false, index:3, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:5, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: false, index:2, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:7, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: false, index:1, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:8, cube_size: s}]};
     
     state.do_move(&soln);
 

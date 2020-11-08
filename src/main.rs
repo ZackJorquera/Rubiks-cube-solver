@@ -5,8 +5,58 @@ use solver::RubiksCubeSolver;
 
 use std::time::Instant;
 
+use std::io;
+
+fn solve_given()
+{
+    // ygrwbwgrgbbyowobooryygrw
+    // wygywoogogobgggroyyywrrrggrbbrybbbrywborooobbrwywywwwg
+    // wwrwwwwwogggggggggrrbrryrrrybybbbwbwbooooooooyybyyryyb
+    // wwoyybrgggrrwoorrwwowgwwbbygwooyrrbyygwwybrwbryrybgobgyybrgbgbrobryyooybbwboggrgroyyrrwboybwboywwbwrogwrrggwgyooogroogyrywygwroooogbbwbwyybyrrgbbgwgog
+    let mut solver = RubiksCubeSolver::from_state_string(&String::from("yworrygogbwrwbyoobyrggwb"));
+    let t0 = Instant::now();
+    solver.calc_heuristics_table();
+    println!("Done calculating heuristics table in {} secs.", t0.elapsed().as_secs_f64());
+    //let t0 = Instant::now();
+    let res0 = solver.solver_2x2x2_heuristics_table(14);
+    println!("Found {:?} turn solution: {}", res0.clone().1.map(|l| l.turns.len()), res0.1.unwrap());
+
+    loop
+    {
+        println!("Input cube state:");
+
+        let mut input = String::new();
+        match io::stdin().read_line(&mut input)
+        {
+            Ok(_) => 
+            {
+                solver.change_state(rubiks::RubiksCubeState::from_state_string(&input.trim().to_owned()));
+                println!("We got:\n{:?}", solver.borrow_state());
+                if solver.borrow_state().size() == 2
+                {
+                    match solver.solver_2x2x2_heuristics_table(14)
+                    {
+                        (true, Some(the_move)) => println!("Solution: {}", the_move),
+                        _ => println!("No Solution"),
+                    }
+                }
+                else
+                {
+                    match solver.solve_dpll(15)
+                    {
+                        (true, Some(the_move)) => println!("Solution: {}", the_move),
+                        _ => println!("No Solution"),
+                    }
+                }
+            }
+            Err(error) => println!("error: {}", error),
+        }
+    }
+}
+
 fn main() 
 {
+    solve_given();
     // let (r_state, _turns) = rubiks::RubiksCubeState::rnd_scramble(2, 100);
     // //println!("{}\n{:?}", turns, r_state);
     // let mut solver = RubiksCubeSolver::from_state(r_state);
