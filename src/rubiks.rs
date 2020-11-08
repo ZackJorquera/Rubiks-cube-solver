@@ -1,9 +1,44 @@
+//! Rubik's cube simulator.
+//! 
+//! The module contains [`RubiksCubeState`] which stores the state of a nxnxn rubik's cube.
+//! You can then construct and apply moves to be done on the cube.
+//! 
+//! # Examples
+//! ```rust
+//! use rubiks::*;
+//! let mut state = RubiksCubeState::std_solved_nxnxn(3);
+//! 
+//! let u_inv_t = Turn::FaceBased{face: Face::Up, inv: true, num_in:0, cube_size: 3};
+//! let f_inv_t = Turn::FaceBased{face: Face::Front, inv: true, num_in:0, cube_size: 3};
+//! let l_inv_t = Turn::FaceBased{face: Face::Left, inv: true, num_in:0, cube_size: 3};
+//! 
+//! let three_turn_move = u_inv_t.as_move() * f_inv_t.as_move() * l_inv_t.as_move();
+//! 
+//! state.do_move(&three_turn_move);
+//! 
+//! println!("{:?}", state);
+//! ``` 
+//! Gives us.
+//! ```
+//!     GWW
+//!     GWW
+//!     GBB
+//! WWW ORR YRR BBR
+//! OGG YRR YBB OOW
+//! OGG YRR YBB OOW
+//!     OGG
+//!     OYY
+//!     BYY
+//! ```
+//! [`RubiksCubeState`]: struct.RubiksCubeState.html
+
 use core::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::ops;
 use rand;
 use rand::prelude::*;
+use std::io;//::{Error, ErrorKind, Result};
 
 /// ULFRBD face
 #[allow(dead_code)]
@@ -75,6 +110,7 @@ impl Color
 }
 
 /// Single Slice Quarter Turn
+/// 
 /// Mappings between the to types:
 /// - Up = +Z
 /// - Left = +X
@@ -82,6 +118,8 @@ impl Color
 /// - Right = -X
 /// - Back = -Y
 /// - Down = -Z
+/// 
+/// num_in = cube_size/2 - index
 /// 
 #[derive(Clone, Copy, Eq, Debug)]
 pub enum Turn
@@ -669,7 +707,7 @@ impl RubiksCubeState
     /// ```rust
     /// let solved_3x3_state = "WWWWWWWWWGGGGGGGGGRRRRRRRRRBBBBBBBBBOOOOOOOOOYYYYYYYYY".to_owned();
     /// let state = RubiksCubeState::from_state_string(&solved_3x3_state);
-    /// println!("{:?}", state);
+    /// println!("{:?}", state.unwrap());
     /// ```
     /// Gives
     /// ```
@@ -683,12 +721,15 @@ impl RubiksCubeState
     ///     YYY
     ///     YYY
     /// ```
-    pub fn from_state_string(s: &String) -> Self
+    pub fn from_state_string(s: &String) -> io::Result<Self>
     {
-        // TODO: return result
         let len = s.len();
-        assert_eq!(len % 6, 0);
-        assert_eq!(f64::sqrt(len as f64/6.0).floor().powi(2) as usize, len / 6);
+        if len % 6 != 0 || f64::sqrt(len as f64/6.0).floor().powi(2) as usize != len / 6
+        {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "")); // TODO: add message
+        }
+        // assert_eq!(len % 6, 0);
+        // assert_eq!(f64::sqrt(len as f64/6.0).floor().powi(2) as usize, len / 6);
         
         let n = f64::sqrt(len as f64/6.0).floor() as usize;
 
@@ -703,7 +744,7 @@ impl RubiksCubeState
                 _ => unimplemented!()
             }).collect();
         
-        RubiksCubeState{n, data}
+        Ok(RubiksCubeState{n, data})
     }
 
     /// Gives a nxnxn cube with where ULFRBD faces have the colors W,G,R,B,O,Y respectively.
@@ -1096,11 +1137,11 @@ fn test_is_solved()
     let solved_5x5_state = "WWWWWWWWWWWWWWWWWWWWWWWWWGGGGGGGGGGGGGGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRBBBBBBBBBBBBBBBBBBBBBBBBBOOOOOOOOOOOOOOOOOOOOOOOOOYYYYYYYYYYYYYYYYYYYYYYYYY".to_owned();
     let solved_5x5_state2 = "BBBBBBBBBBBBBBBBBBBBBBBBBOOOOOOOOOOOOOOOOOOOOOOOOOWWWWWWWWWWWWWWWWWWWWWWWWWRRRRRRRRRRRRRRRRRRRRRRRRRYYYYYYYYYYYYYYYYYYYYYYYYYGGGGGGGGGGGGGGGGGGGGGGGGG".to_owned();
 
-    assert_eq!(RubiksCubeState::from_state_string(&solved_3x3_state).is_solved(), true);
-    assert_eq!(RubiksCubeState::from_state_string(&solved_3x3_state2).is_solved(), true);
-    assert_eq!(RubiksCubeState::from_state_string(&solved_4x4_state).is_solved(), true);
-    assert_eq!(RubiksCubeState::from_state_string(&solved_5x5_state).is_solved(), true);
-    assert_eq!(RubiksCubeState::from_state_string(&solved_5x5_state2).is_solved(), true);
+    assert_eq!(RubiksCubeState::from_state_string(&solved_3x3_state).unwrap().is_solved(), true);
+    assert_eq!(RubiksCubeState::from_state_string(&solved_3x3_state2).unwrap().is_solved(), true);
+    assert_eq!(RubiksCubeState::from_state_string(&solved_4x4_state).unwrap().is_solved(), true);
+    assert_eq!(RubiksCubeState::from_state_string(&solved_5x5_state).unwrap().is_solved(), true);
+    assert_eq!(RubiksCubeState::from_state_string(&solved_5x5_state2).unwrap().is_solved(), true);
 
     let nsolved_3x3_state = "WWWWWWWWWGGGGGGGGGRRRRRRRRRYBBBBBBBBOOOOOOOOOYYYYYYYYY".to_owned();
     let nsolved_3x3_state2 = "WWWWWWWWWOOOOOOOOOGGGGGGGGGRRRRRRRRRBBBBBBBBBBYYYYYYYY".to_owned();
@@ -1108,11 +1149,11 @@ fn test_is_solved()
     let nsolved_5x5_state = "WWWWWWWWWWWWWWWWWWWWWWWWWGGGGGGGGGGGGGGGGGGGGGGGGGRRRRRRRRRRRRRRRRRRRRRRRRRBBBBBBBBBBBBBBBBBBBBBBBBBOOOOOOOOOOOOOOOOOOOOOOOOOWYYYYYYYYYYYYYYYYYYYYYYYY".to_owned();
     let nsolved_5x5_state2 = "BBBBBBBBBBBBBBBBBBBBBBBBBOOOOOOOOOOOOOOOOOOOOBOOOOWWWWWWWWWWWWWWWWWWWWWWWWWRRRRRRRRRRRRRRRRRRRRRRRRRYYYYYYYYYYYYYYYYYYYYYYYYYGGGGGGGGGGGGGGGGGGGGGGGGG".to_owned();
 
-    assert_eq!(RubiksCubeState::from_state_string(&nsolved_3x3_state).is_solved(), false);
-    assert_eq!(RubiksCubeState::from_state_string(&nsolved_3x3_state2).is_solved(), false);
-    assert_eq!(RubiksCubeState::from_state_string(&nsolved_4x4_state).is_solved(), false);
-    assert_eq!(RubiksCubeState::from_state_string(&nsolved_5x5_state).is_solved(), false);
-    assert_eq!(RubiksCubeState::from_state_string(&nsolved_5x5_state2).is_solved(), false);
+    assert_eq!(RubiksCubeState::from_state_string(&nsolved_3x3_state).unwrap().is_solved(), false);
+    assert_eq!(RubiksCubeState::from_state_string(&nsolved_3x3_state2).unwrap().is_solved(), false);
+    assert_eq!(RubiksCubeState::from_state_string(&nsolved_4x4_state).unwrap().is_solved(), false);
+    assert_eq!(RubiksCubeState::from_state_string(&nsolved_5x5_state).unwrap().is_solved(), false);
+    assert_eq!(RubiksCubeState::from_state_string(&nsolved_5x5_state2).unwrap().is_solved(), false);
 
     for n in 2..10
     {
@@ -1124,8 +1165,8 @@ fn test_is_solved()
 fn test_turns()
 {
     let solved_3x3_state_str = "WWWWWWWWWOOOOOOOOOGGGGGGGGGRRRRRRRRRBBBBBBBBBYYYYYYYYY".to_owned();
-    let mut state_3x3 = RubiksCubeState::from_state_string(&solved_3x3_state_str);
-    let mut state2_3x3 = RubiksCubeState::from_state_string(&solved_3x3_state_str);
+    let mut state_3x3 = RubiksCubeState::from_state_string(&solved_3x3_state_str).unwrap();
+    let mut state2_3x3 = RubiksCubeState::from_state_string(&solved_3x3_state_str).unwrap();
     state_3x3.turn(Turn::FaceBased{face: Face::Down, inv: true, num_in:0, cube_size: 3});
     state_3x3.turn(Turn::FaceBased{face: Face::Back, inv: true, num_in:0, cube_size: 3});
     state_3x3.turn(Turn::FaceBased{face: Face::Up, inv: false,num_in: 0, cube_size: 3});
@@ -1139,7 +1180,7 @@ fn test_turns()
     state_3x3.turn(Turn::FaceBased{face: Face::Up, inv: true, num_in:0, cube_size: 3});
     state_3x3.turn(Turn::FaceBased{face: Face::Left, inv: true, num_in:0, cube_size: 3});
     let solved_3x3_state_with_turns = "OGWWWWWOYYGGBOOOOGRWGGGGROWORRYRRGRRBRBBBWBBWYBOYYYBYY".to_owned();
-    assert_eq!(state_3x3, RubiksCubeState::from_state_string(&solved_3x3_state_with_turns));
+    assert_eq!(state_3x3, RubiksCubeState::from_state_string(&solved_3x3_state_with_turns).unwrap());
 
     let rubiks_move = Move{turns: vec![Turn::FaceBased{face: Face::Down, inv: true, num_in:0, cube_size: 3},
                                       Turn::FaceBased{face: Face::Back, inv: true, num_in:0, cube_size: 3},
@@ -1156,7 +1197,7 @@ fn test_turns()
 
     state2_3x3.do_move(&rubiks_move);
     
-    assert_eq!(state2_3x3, RubiksCubeState::from_state_string(&solved_3x3_state_with_turns));
+    assert_eq!(state2_3x3, RubiksCubeState::from_state_string(&solved_3x3_state_with_turns).unwrap());
 
     // TODO: more and better
 }
@@ -1311,4 +1352,20 @@ fn test_hash()
 
         assert_eq!(hasher1.finish(), hasher2.finish());
     }
+}
+
+#[test]
+fn doc_tester()
+{
+    let mut state = RubiksCubeState::std_solved_nxnxn(3);
+
+    let u_inv_t = Turn::FaceBased{face: Face::Up, inv: true, num_in:0, cube_size: 3};
+    let f_inv_t = Turn::FaceBased{face: Face::Front, inv: true, num_in:0, cube_size: 3};
+    let l_inv_t = Turn::FaceBased{face: Face::Left, inv: true, num_in:0, cube_size: 3};
+
+    let three_turn_move = u_inv_t.as_move() * f_inv_t.as_move() * l_inv_t.as_move();
+
+    state.do_move(&three_turn_move);
+
+    println!("{:?}", state);
 }

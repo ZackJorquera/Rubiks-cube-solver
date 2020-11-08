@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::io;
 
 use super::rubiks;
 
@@ -14,9 +15,9 @@ pub struct RubiksCubeSolver
 impl RubiksCubeSolver
 {
     #[allow(dead_code)]
-    pub fn from_state_string(s: &String) -> Self
+    pub fn from_state_string(s: &String) -> io::Result<Self>
     {
-        RubiksCubeSolver{state: rubiks::RubiksCubeState::from_state_string(s), heuristic_table: None}
+        Ok(RubiksCubeSolver{state: rubiks::RubiksCubeState::from_state_string(s)?, heuristic_table: None})
     }
 
     pub fn from_state(state: rubiks::RubiksCubeState) -> Self
@@ -47,7 +48,8 @@ impl RubiksCubeSolver
 
     pub fn solver_2x2x2_heuristics_table(&self, k: usize) -> (bool, Option<rubiks::Move>)
     {
-        assert_eq!(self.state.size(), 2);
+        if self.state.size() != 2 { return (false, None); }
+
         if let Some(heuristic_table) = &self.heuristic_table
         {
             let mut tmp_state = self.state.clone();
@@ -120,9 +122,8 @@ impl RubiksCubeSolver
 
     pub fn solver_dpll_2x2x2(&self, k: usize) -> (bool, Option<rubiks::Move>)
     {
-        // TODO: use heuristic_table
-        assert_eq!(self.state.size(), 2);
-
+        if self.state.size() != 2 { return (false, None); }
+        
         if self.state.is_solved()
         {
             return (true, Some(rubiks::Move::empty()));
@@ -419,6 +420,7 @@ fn time_solves()
 #[test]
 fn test_calc_heuristics_table()
 {
+    assert!(false);
     let (r_state, _scram_move) = rubiks::RubiksCubeState::rnd_scramble(2, 1000);
 
     let mut solver = RubiksCubeSolver::from_state(r_state.clone());
@@ -518,6 +520,7 @@ fn encode_bit_strings()
 #[test]
 fn test_solve_2x2x2_with_heuristics_table()
 {
+    assert!(false);
     let (r_state, _scram_move) = rubiks::RubiksCubeState::rnd_scramble(2, 1000);
 
     let mut solver = RubiksCubeSolver::from_state(r_state.clone());

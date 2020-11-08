@@ -13,13 +13,18 @@ fn solve_given()
     // wygywoogogobgggroyyywrrrggrbbrybbbrywborooobbrwywywwwg
     // wwrwwwwwogggggggggrrbrryrrrybybbbwbwbooooooooyybyyryyb
     // wwoyybrgggrrwoorrwwowgwwbbygwooyrrbyygwwybrwbryrybgobgyybrgbgbrobryyooybbwboggrgroyyrrwboybwboywwbwrogwrrggwgyooogroogyrywygwroooogbbwbwyybyrrgbbgwgog
-    let mut solver = RubiksCubeSolver::from_state_string(&String::from("yworrygogbwrwbyoobyrggwb"));
+    // let mut solver = RubiksCubeSolver::from_state_string(&String::from("yworrygogbwrwbyoobyrggwb"));
+    // let t0 = Instant::now();
+    // solver.calc_heuristics_table();
+    // println!("Done calculating heuristics table in {} secs.", t0.elapsed().as_secs_f64());
+    // //let t0 = Instant::now();
+    // let res0 = solver.solver_2x2x2_heuristics_table(14);
+    // println!("Found {:?} turn solution: {}", res0.clone().1.map(|l| l.turns.len()), res0.1.unwrap());
+
+    let mut solver = RubiksCubeSolver::from_state(rubiks::RubiksCubeState::std_solved_nxnxn(2));
     let t0 = Instant::now();
     solver.calc_heuristics_table();
     println!("Done calculating heuristics table in {} secs.", t0.elapsed().as_secs_f64());
-    //let t0 = Instant::now();
-    let res0 = solver.solver_2x2x2_heuristics_table(14);
-    println!("Found {:?} turn solution: {}", res0.clone().1.map(|l| l.turns.len()), res0.1.unwrap());
 
     loop
     {
@@ -30,8 +35,18 @@ fn solve_given()
         {
             Ok(_) => 
             {
-                solver.change_state(rubiks::RubiksCubeState::from_state_string(&input.trim().to_owned()));
-                println!("We got:\n{:?}", solver.borrow_state());
+                match rubiks::RubiksCubeState::from_state_string(&input.trim().to_owned()) 
+                {
+                    Ok(new_state) => {
+                        solver.change_state(new_state);
+                        println!("We got:\n{:?}", solver.borrow_state());
+                    },
+                    Err(e) => {
+                        println!("Failed to read state, error: {}", e);
+                        continue;
+                    }
+                }
+
                 if solver.borrow_state().size() == 2
                 {
                     match solver.solver_2x2x2_heuristics_table(14)
@@ -42,7 +57,7 @@ fn solve_given()
                 }
                 else
                 {
-                    match solver.solve_dpll(15)
+                    match solver.solve_dpll(10)
                     {
                         (true, Some(the_move)) => println!("Solution: {}", the_move),
                         _ => println!("No Solution"),
