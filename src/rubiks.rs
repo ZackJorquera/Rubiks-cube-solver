@@ -365,7 +365,7 @@ impl Move
     /// The turn can make the move inefficient in 3 ways:
     /// - The turn is the inverse of the last turn in the current move.
     /// - The turn is the 3rd of the same type of move in a row.
-    /// - The turn commutes with the last move and it is not in the order U->D (higher turns first) L->R F->B.
+    /// - The turn commutes with the last move and it is not in the order U->D (larger index turns first) L->R F->B.
     /// 
     /// These are an attempt to make each branch on the dpll algorithm lead to a different cube configuration.
     pub fn is_next_turn_efficient(&self, next_turn: Turn) -> bool
@@ -1035,6 +1035,11 @@ impl RubiksCubeState
     pub fn size(&self) -> usize
     {
         self.n
+    }
+
+    pub fn data_at(&self, i: usize) -> Color
+    {
+        self.data[i]
     }
 
     /// rotates all the faces on the cube, not a slice.

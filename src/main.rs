@@ -1,5 +1,8 @@
+// TODO: make lib
+
 mod rubiks;
 mod solver;
+mod rubiks_render;
 
 use solver::RubiksCubeSolver;
 
@@ -57,7 +60,7 @@ fn solve_given()
                 }
                 else
                 {
-                    match solver.solve_dpll(10)
+                    match solver.solve_dpll(15)
                     {
                         (true, Some(the_move)) => println!("Solution: {}", the_move),
                         _ => println!("No Solution"),
@@ -69,8 +72,101 @@ fn solve_given()
     }
 }
 
+fn quick_and_dirty_rend()
+{
+    let mut state = rubiks::RubiksCubeState::std_solved_nxnxn(3);
+
+    let the_move = rubiks::Move{turns: vec![rubiks::Turn::FaceBased{face: rubiks::Face::Up, inv: true, num_in:0, cube_size: 3},
+                                            rubiks::Turn::FaceBased{face: rubiks::Face::Front, inv: true,  num_in:0, cube_size: 3},
+                                            rubiks::Turn::FaceBased{face: rubiks::Face::Left, inv: true, num_in:0, cube_size: 3}]};
+
+    state.do_move(&the_move);
+
+    rubiks_render::RubikDrawer::from_state(state).show();
+}
+
+fn test_draw()
+{
+    let n = 5;
+    let m = 3;
+    let s = 6*n+2*m;
+
+    let ls: Vec<[u8; 3]> = vec![[0, 1, 1], [1, 1, 0], [1, 1, 1], [1, 0, 0], [0, 0, 0]];
+
+    // let n = 3;
+    // let m = 2;
+    // let s = 6*n+2*m;
+
+    // let ls: Vec<[u8; 2]> = vec![[1, 1], [0, 1], [0, 0]];
+
+    let bs = ls.clone().into_iter().enumerate().map(|(i,l)| 
+    {
+        let mut a_i = rubiks::Move::empty();
+        for (j, bit) in l.iter().enumerate()
+        {
+            if *bit != 0 
+            { 
+                a_i *= rubiks::Turn::AxisBased{
+                    axis: rubiks::Axis::X, pos_rot: true, index: (j+1) as isize, cube_size: s}.as_move();
+            }
+        }
+        let z_m_i = rubiks::Turn::AxisBased{
+                    axis: rubiks::Axis::Z, pos_rot: true, index: (m+i+1) as isize, cube_size: s}.as_move();
+
+        a_i.clone() * z_m_i * a_i.invert()
+    });
+
+    let mut state = rubiks::RubiksCubeState::std_solved_nxnxn(s);
+
+    let mut a_1 = rubiks::Move::empty();
+    for (j, bit) in ls[0].iter().enumerate()
+    {
+        if *bit != 0 
+        { 
+            a_1 *= rubiks::Turn::AxisBased{
+                axis: rubiks::Axis::X, pos_rot: true, index: (j+1) as isize, cube_size: s}.as_move();
+        }
+    }
+
+    let mut tb = rubiks::Move::empty();
+    let mut t = rubiks::Move::empty();
+
+    for bi in bs.clone()//.rev() // rev doesn't matter, all bis commute
+    {
+        //println!("{}", bi);
+        tb *= bi;
+    }
+
+    t = tb * a_1;
+
+    state.do_move(&t.clone());
+    
+    println!("{}\n{:?}", t,state);
+
+    rubiks_render::RubikDrawer::from_state(state.clone()).show();
+
+    let soln = rubiks::Move{turns: vec![rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:4, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: true,  index:1, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:6, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: false, index:3, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:5, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: false, index:2, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:7, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: false, index:1, cube_size: s},
+                                        rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:8, cube_size: s}]};
+    
+    state.do_move(&soln);
+
+    println!("{}\n{:?}\nsolved: {}", soln, state, state.is_solved());
+}
+
 fn main() 
 {
+    quick_and_dirty_rend();
+    test_draw();
+
+    return;
+
     solve_given();
     // let (r_state, _turns) = rubiks::RubiksCubeState::rnd_scramble(2, 100);
     // //println!("{}\n{:?}", turns, r_state);
