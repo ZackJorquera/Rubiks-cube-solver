@@ -129,7 +129,7 @@ fn test_draw()
     }
 
     let mut tb = rubiks::Move::empty();
-    let mut t = rubiks::Move::empty();
+    let t;
 
     for bi in bs.clone()//.rev() // rev doesn't matter, all bis commute
     {
@@ -164,8 +164,6 @@ fn main()
 {
     quick_and_dirty_rend();
     test_draw();
-
-    return;
 
     solve_given();
     // let (r_state, _turns) = rubiks::RubiksCubeState::rnd_scramble(2, 100);

@@ -7,8 +7,10 @@ use super::rubiks;
 use std::time;
 use glium::{glutin, Surface, Display, Program, Frame, self};
 
+#[cfg(target_family = "unix")]
 use nix::unistd::{fork, ForkResult};
-use nix::sys::wait::{waitpid, WaitPidFlag};
+#[cfg(target_family = "unix")]
+use nix::sys::wait::waitpid;
 
 /// `Vertex` is used for [`glium`]'s draw functions.
 /// 
@@ -209,8 +211,8 @@ impl RubikDrawer
         let _ = target.finish();
     }
 
-    /// This is hacky, I don't know how to make it not end the process. 
-    /// Maybe I have to make a child thread or something
+    /// This is hacky, there must be a better way then to fork the process.
+    #[cfg(target_family = "unix")]
     pub fn show(&self) -> ()
     {
         match unsafe{fork()} 
@@ -228,7 +230,7 @@ impl RubikDrawer
                 let event_loop = glutin::event_loop::EventLoop::new();
                 let wb = glutin::window::WindowBuilder::new()
                     .with_title("Rubik's Cube State");
-                let cb = glutin::ContextBuilder::new().with_vsync(false);
+                let cb = glutin::ContextBuilder::new().with_vsync(true);
                 let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
                 let vertex_shader_src = r#"
@@ -282,5 +284,68 @@ impl RubikDrawer
             },
             Err(_) => println!("Fork failed"),
         };
+    }
+
+    /// This is hacky, I don't know how to make it not end the process. 
+    /// I mean i do, I have to use libc, but I don't want to
+    #[cfg(target_family = "windows")]
+    pub fn show(&self) -> !
+    {
+        println!("To use `show` that doesn't exist, use linux. Im too lazy to write good code. sorry.");
+
+        let event_loop = glutin::event_loop::EventLoop::new();
+        let wb = glutin::window::WindowBuilder::new()
+            .with_title("Rubik's Cube State");
+        let cb = glutin::ContextBuilder::new().with_vsync(true);
+        let display = glium::Display::new(wb, cb, &event_loop).unwrap();
+
+        let vertex_shader_src = r#"
+            #version 140
+            in vec2 position;
+            void main() {
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+        "#;
+
+        let fragment_shader_src = r#"
+            #version 140
+            out vec4 color;
+            uniform vec3 rgb_color;
+            void main() {
+                color = vec4(rgb_color, 1.0);
+            }
+        "#;
+
+        let program = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap();
+
+        let cube_state = self.state.clone();
+
+        Self::draw_cube(&cube_state, &display, &program);
+
+        event_loop.run(move |event, _, control_flow|
+        {
+            // let frame_time = start.elapsed().as_secs_f32();
+            // start = time::Instant::now();
+            let next_frame_time = time::Instant::now() + time::Duration::from_millis(100); //time::Duration::from_nanos(33_333_333); // 60fps
+
+            *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
+
+            match event 
+            {
+                glutin::event::Event::WindowEvent { event, .. } => match event
+                {
+                    glutin::event::WindowEvent::CloseRequested =>
+                    {
+                        *control_flow = glutin::event_loop::ControlFlow::Exit;
+                        return;
+                    },
+                    glutin::event::WindowEvent::Resized(_) => Self::draw_cube(&cube_state, &display, &program),
+                    _ => return,
+                },
+                _ => (),
+            }
+            
+            //Self::draw_cube(&cube_state, &display, &program);  // TODO: do we need the loop
+        })
     }
 }

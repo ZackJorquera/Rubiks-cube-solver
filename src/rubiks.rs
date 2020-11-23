@@ -33,6 +33,7 @@
 //! [`RubiksCubeState`]: struct.RubiksCubeState.html
 
 use core::hash::{Hash, Hasher};
+#[allow(unused_imports)]
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::ops;
