@@ -10,7 +10,7 @@ use std::time::Instant;
 
 use std::io;
 
-fn solve_given()
+fn solve_given(show_cubes: bool)
 {
     // ygrwbwgrgbbyowobooryygrw
     // wygywoogogobgggroyyywrrrggrbbrybbbrywborooobbrwywywwwg
@@ -43,6 +43,7 @@ fn solve_given()
                     Ok(new_state) => {
                         solver.change_state(new_state);
                         println!("We got:\n{:?}", solver.borrow_state());
+                        if show_cubes { rubiks_render::RubikDrawer::from_state(solver.borrow_state().clone()).show(); }
                     },
                     Err(e) => {
                         println!("Failed to read state, error: {}", e);
@@ -138,10 +139,15 @@ fn test_draw()
     }
 
     t = tb * a_1;
-
-    state.do_move(&t.clone());
     
     println!("{}\n{:?}", t,state);
+    rubiks_render::RubikDrawer::from_state(state.clone()).show();
+    for turn in t
+    {
+        state.turn(turn);
+        rubiks_render::RubikDrawer::from_state(state.clone()).show();
+    }
+    // state.do_move(&t.clone());
 
     rubiks_render::RubikDrawer::from_state(state.clone()).show();
 
@@ -155,17 +161,29 @@ fn test_draw()
                                         rubiks::Turn::AxisBased{axis: rubiks::Axis::X, pos_rot: false, index:1, cube_size: s},
                                         rubiks::Turn::AxisBased{axis: rubiks::Axis::Z, pos_rot: false, index:8, cube_size: s}]};
     
-    state.do_move(&soln);
+
+    rubiks_render::RubikDrawer::from_state(state.clone()).show();
+    for turn in soln.clone()
+    {
+        state.turn(turn);
+        rubiks_render::RubikDrawer::from_state(state.clone()).show();
+    }
+    // state.do_move(&soln);
 
     println!("{}\n{:?}\nsolved: {}", soln, state, state.is_solved());
 }
 
 fn main() 
 {
-    quick_and_dirty_rend();
-    test_draw();
+    let show_cubes = std::env::args().nth(1).map(|s| s.to_lowercase().contains("show")) == Some(true);
 
-    solve_given();
+    if show_cubes
+    {
+        quick_and_dirty_rend();
+        test_draw();
+    }
+
+    solve_given(show_cubes);
     // let (r_state, _turns) = rubiks::RubiksCubeState::rnd_scramble(2, 100);
     // //println!("{}\n{:?}", turns, r_state);
     // let mut solver = RubiksCubeSolver::from_state(r_state);

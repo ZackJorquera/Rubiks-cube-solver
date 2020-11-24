@@ -542,6 +542,16 @@ impl ops::MulAssign for Move
     }
 }
 
+impl IntoIterator for Move
+{
+    type Item = Turn;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.turns.into_iter()
+    }
+}
+
 /// Rubik's Cube State
 #[derive(Clone)]
 pub struct RubiksCubeState
