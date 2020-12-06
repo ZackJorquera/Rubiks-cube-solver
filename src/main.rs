@@ -12,10 +12,8 @@ use std::io;
 
 fn solve_given(show_cubes: bool)
 {
-    // ygrwbwgrgbbyowobooryygrw
-    // wygywoogogobgggroyyywrrrggrbbrybbbrywborooobbrwywywwwg
-    // wwrwwwwwogggggggggrrbrryrrrybybbbwbwbooooooooyybyyryyb
-    // wwoyybrgggrrwoorrwwowgwwbbygwooyrrbyygwwybrwbryrybgobgyybrgbgbrobryyooybbwboggrgroyyrrwboybwboywwbwrogwrrggwgyooogroogyrywygwroooogbbwbwyybyrrgbbgwgog
+    // wwoowwbgrgbybggygroogrrrgrrygybbywwogoooowbybwybyyrrbw
+    // gowgwyywowgowowgorrryygogwowworwgggywgggyooyorwgggbboborwrwrrwrwogggworwrwgybrrrgyyrybbbbbbbbbbooooobwbgrgoybyryoboryobobyyyyybybwyryrwyryrwrgggwbbbrw
     // let mut solver = RubiksCubeSolver::from_state_string(&String::from("yworrygogbwrwbyoobyrggwb"));
     // let t0 = Instant::now();
     // solver.calc_heuristics_table();
@@ -61,9 +59,18 @@ fn solve_given(show_cubes: bool)
                         Err(err) => println!("No Solution: {:?}", err),
                     }
                 }
+                else if input_state.size() == 3
+                {
+                    match solver.solve_with_idastar_3x3x3(&input_state)
+                    {
+                        Ok(the_move) => println!("Solution: {}", the_move),
+                        Err(err) => println!("No Solution: {:?}", err),
+                    }
+                }
                 else
                 {
-                    match solver.solve_dpll(&input_state, 10)
+                    match solver.solve_with_idastar(&input_state)
+                    //match solver.solve_dpll(&input_state, 10)
                     {
                         Ok(the_move) => println!("Solution: {}", the_move),
                         Err(err) => println!("No Solution: {:?}", err),

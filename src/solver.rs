@@ -21,7 +21,6 @@ impl HeuristicsTables
 
     pub fn calc_corner_heuristics_table(&mut self)
     {
-
         let mut hash_table: HashMap<rubiks::RubiksCubeState, u8> = HashMap::with_capacity(18000000); // TODO: change size
         let mut num_pos = 0;
 
@@ -58,6 +57,10 @@ impl HeuristicsTables
         assert_eq!(num_pos, 3674160);
     }
 
+    pub fn calc_edge_heuristics_table(&mut self, edge_type: bool)
+    {
+        todo!()
+    }
 }
 
 impl fmt::Debug for HeuristicsTables {
@@ -457,6 +460,48 @@ impl RubiksCubeSolver
                 //.solver_dpll_2x2x2(k).1.map(|m| m.turns.len())
     }
 
+    fn calc_heuristics(&self, rubiks_state: &rubiks::RubiksCubeState, solve_smaller: bool, bound: Option<usize>) -> Option<usize>
+    {
+        // take max of all heuristics
+        let mut heuristics = vec![self.calc_corner_heuristics(rubiks_state)?];
+
+        if let Some(bound) = bound
+        {
+            if heuristics.iter().cloned().fold(heuristics[0], usize::max) > bound
+            {
+                return Some(heuristics.iter().cloned().fold(heuristics[0], usize::max))
+            }
+        }
+
+        if solve_smaller && rubiks_state.size() > 4  // 2x2x2 cube is the same as the corner heuristic
+        {
+            let rubiks_state_smaller2 = rubiks_state.from_outer_to_smaller_cube_size(rubiks_state.size() - 2);
+            if let Ok(turns) = self.solve_with_idastar(&rubiks_state_smaller2)
+            {
+                heuristics.push(turns.turns.len())
+            }
+
+            if let Some(bound) = bound
+            {
+                if heuristics.iter().cloned().fold(heuristics[0], usize::max) > bound
+                {
+                    return Some(heuristics.iter().cloned().fold(heuristics[0], usize::max))
+                }
+            }
+
+            if rubiks_state.size() % 2 == 1
+            {
+                let rubiks_state_smaller1 = rubiks_state.from_outer_to_smaller_cube_size(rubiks_state.size() - 1);
+                if let Ok(turns) = self.solve_with_idastar(&rubiks_state_smaller1)
+                {
+                    heuristics.push(turns.turns.len())
+                }
+            }
+        }
+
+        return Some(heuristics.iter().cloned().fold(heuristics[0], usize::max));
+    }
+
     /// will use heuristics if available
     pub fn solve_dpll(&self, rubiks_state: &rubiks::RubiksCubeState, k: usize) -> Result<rubiks::Move, RubikSolveError>
     {
@@ -532,19 +577,148 @@ impl RubiksCubeSolver
     }
 
     #[allow(dead_code)]
-    pub fn solve_with_ida_3x3x3(&self, rubiks_state: &rubiks::RubiksCubeState) -> Result<rubiks::Move, RubikSolveError>
+    pub fn solve_with_idastar_3x3x3(&self, rubiks_state: &rubiks::RubiksCubeState) -> Result<rubiks::Move, RubikSolveError>
     {
-        // https://en.wikipedia.org/wiki/Iterative_deepening_A*
-        // https://github.com/FarhanShoukat/Rubiks-Cube-Solver/blob/master/RubixcubeSolutionPatternDB.py#L78
-        todo!()
+        let start_h = self.calc_heuristics(rubiks_state, false, None).ok_or(RubikSolveError::NoHeuristicsTable)?;
+        let mut bound = start_h;
+        println!("new bound: {}", bound);
+
+        let mut state_stack: Vec<(rubiks::Move, rubiks::RubiksCubeState, usize)> = vec![]; //vec![None ; k+1]; // TODO: with cap
+
+        loop
+        {
+            let mut min_turns: Option<usize> = None;
+            state_stack.push((rubiks::Move::empty(), rubiks_state.clone(), start_h));
+
+            while let Some((rubiks_move, curr_state, _)) = {state_stack.sort_by_key(|a| a.2); state_stack.pop()}
+            {
+                // let curr_h = self.calc_heuristics(&curr_state, false, None).ok_or(RubikSolveError::NoHeuristicsTable)?;
+                let curr_g = rubiks_move.turns.len();
+                // let f = curr_g + curr_h;
+                
+                if curr_state.is_solved()
+                {
+                    return Ok(rubiks_move.clone());
+                }
+
+                for turn_type in rubiks_state.all_turns().into_iter().filter(|turn_type|
+                                                            rubiks_move.is_next_turn_efficient(*turn_type))
+                {
+                    let mut mut_move = rubiks_move.clone();
+                    let mut mut_state = curr_state.clone();
+                    mut_state.turn(turn_type);
+                    mut_move.turns.push(turn_type);
+
+                    let next_h = self.calc_heuristics(&mut_state, false, None).ok_or(RubikSolveError::NoHeuristicsTable)?;
+                    assert_eq!(curr_g + 1, mut_move.turns.len());
+                    let next_g = curr_g + 1;
+                    let next_f = next_g + next_h;
+
+                    if next_f > bound
+                    {
+                        if let Some(num_min_turns) = min_turns
+                        {
+                            if next_f < num_min_turns
+                            {
+                                min_turns = Some(next_f)
+                            }
+                        }
+                        else
+                        {
+                            min_turns = Some(next_f)
+                        }
+                    }
+                    else
+                    {
+                        // TODO: check if the mut_state has already been reached maybe (at least in the path)
+                        state_stack.push((mut_move, mut_state, next_f));
+                    }
+                }
+            }
+
+            if let Some(num_min_turns) = min_turns
+            {
+                bound = num_min_turns;
+                println!("new bound: {}", bound);
+            }
+            else
+            {
+                return Err(RubikSolveError::Unsolveable)
+            }
+        }
     }
 
     #[allow(dead_code)]
-    pub fn solve_with_ida(&self, rubiks_state: &rubiks::RubiksCubeState) -> Result<rubiks::Move, RubikSolveError>
+    pub fn solve_with_idastar(&self, rubiks_state: &rubiks::RubiksCubeState) -> Result<rubiks::Move, RubikSolveError>
     {
-        // https://en.wikipedia.org/wiki/Iterative_deepening_A*
-        // https://github.com/FarhanShoukat/Rubiks-Cube-Solver/blob/master/RubixcubeSolutionPatternDB.py#L78
-        todo!()
+        // ida star that uses smaller cubes as the heuristic
+        let start_h = self.calc_heuristics(rubiks_state, true, None).ok_or(RubikSolveError::NoHeuristicsTable)?;
+        let mut bound = start_h;
+        println!("new bound: {}", bound);
+
+        let mut state_stack: Vec<(rubiks::Move, rubiks::RubiksCubeState, usize)> = vec![]; //vec![None ; k+1]; // TODO: with cap
+
+        loop
+        {
+            let mut min_turns: Option<usize> = None;
+            state_stack.push((rubiks::Move::empty(), rubiks_state.clone(), start_h));
+
+            while let Some((rubiks_move, curr_state, _)) = {state_stack.sort_by_key(|a| a.2); state_stack.pop()}
+            {
+                // let curr_h = self.calc_heuristics(&curr_state, true).ok_or(RubikSolveError::NoHeuristicsTable)?;
+                let curr_g = rubiks_move.turns.len();
+                //let f = curr_g + curr_h;
+                
+                if curr_state.is_solved()
+                {
+                    return Ok(rubiks_move.clone());
+                }
+
+                for turn_type in rubiks_state.all_turns().into_iter().filter(|turn_type|
+                                                            rubiks_move.is_next_turn_efficient(*turn_type))
+                {
+                    let mut mut_move = rubiks_move.clone();
+                    let mut mut_state = curr_state.clone();
+                    mut_state.turn(turn_type);
+                    mut_move.turns.push(turn_type);
+
+                    assert_eq!(curr_g + 1, mut_move.turns.len());
+                    let next_g = curr_g + 1;
+                    let next_h = self.calc_heuristics(&mut_state, true, min_turns.map(|val| val - next_g)).ok_or(RubikSolveError::NoHeuristicsTable)?;
+                                        let next_f = next_g + next_h;
+
+                    if next_f > bound
+                    {
+                        if let Some(num_min_turns) = min_turns
+                        {
+                            if next_f < num_min_turns
+                            {
+                                min_turns = Some(next_f)
+                            }
+                        }
+                        else
+                        {
+                            min_turns = Some(next_f)
+                        }
+                    }
+                    else
+                    {
+                        // TODO: check if the mut_state has already been reached maybe (at least in the path)
+                        state_stack.push((mut_move, mut_state, next_f));
+                    }
+                }
+            }
+
+            if let Some(num_min_turns) = min_turns
+            {
+                bound = num_min_turns;
+                println!("new bound: {}", bound);
+            }
+            else
+            {
+                return Err(RubikSolveError::Unsolveable)
+            }
+        }
     }
 
     #[allow(dead_code)]
@@ -554,6 +728,7 @@ impl RubiksCubeSolver
     }
 }
 
+#[allow(dead_code)]
 fn time_solves()
 {
     

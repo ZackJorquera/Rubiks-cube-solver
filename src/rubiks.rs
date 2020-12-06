@@ -338,6 +338,7 @@ impl Move
     }
 
     /// Will create a random move for an nxnxn rubik's cube with `num_turns` turns.
+    #[allow(dead_code)]
     pub fn rnd_move(n: usize, num_turns: usize) -> Self
     {
         let mut rng = rand::thread_rng();
@@ -773,6 +774,7 @@ impl RubiksCubeState
     /// Produces a valid cube configuration by starting with [`std_solved_nxnxn`] and then making `num_turns` randoms turns.
     /// 
     /// [`std_solved_nxnxn`]: struct.RubiksCubeState.html#method.std_solved_nxnxn
+    #[allow(dead_code)]
     pub fn rnd_scramble(n: usize, num_turns: usize) -> (Self, Move)
     {
         let mut state = Self::std_solved_nxnxn(n);
@@ -784,20 +786,43 @@ impl RubiksCubeState
     }
 
     /// Creates a 2x2x2 cube from the corners of the `ref_state` cube.
-    pub fn from_corners_to_2x2x2(ref_state: &Self) -> Self
+    /// Same as [`from_outer_to_smaller_cube_size`] when `n_new = 2`.
+    pub fn from_corners_to_2x2x2(&self) -> Self
     {
-        let data = ref_state.data.clone().chunks_exact(ref_state.n).enumerate() // we will get 6n chunks
+        Self::from_outer_to_smaller_cube_size(self, 2)
+    }
+
+    /// Given a nxnxn cube, it will create a new cube of size `n_new` using the outmost slices (and the center if n_new is odd).
+    /// Note, the inner slices (that we ignore) can not affect the stickers on the outer slices that we care about.
+    /// Also note, if `n_new` is odd, the original size must also be odd. `n_new` must also be smaller than the original size.
+    pub fn from_outer_to_smaller_cube_size(&self, n_new: usize) -> Self
+    {
+        assert!(n_new <= self.size());
+        assert!(n_new % 2 == 0 || self.size() % 2 == 1);
+
+        let data = self.data.clone().chunks_exact(self.n).enumerate() // we will get 6n chunks (n rows for all 6 faces)
             .fold(vec![], |mut v, (i, c_row)| 
             {
-                if i % ref_state.n == 0 || i % ref_state.n == ref_state.n-1
-                { 
-                    v.push(c_row[0]); 
-                    v.push(*c_row.last().unwrap()); 
+                // if on correct row
+                if i % self.n < n_new / 2 || i % self.n >= self.n-(n_new/2) || (n_new % 2 == 1 && i % self.n == self.n / 2)
+                {
+                    for j in 0..(n_new / 2)
+                    {
+                        v.push(c_row[j]);
+                    }
+                    if n_new % 2 == 1
+                    {
+                        v.push(c_row[self.n / 2])
+                    }
+                    for j in (0..(n_new / 2)).rev()
+                    {
+                        v.push(c_row[self.n - j - 1]);
+                    }
                 }
-                    v
+                v
             });
         
-        RubiksCubeState {n: 2, data}
+        RubiksCubeState {n: n_new, data}
     }
 
     /// internal function used by `turn`
@@ -1285,24 +1310,39 @@ fn test_change_cube_size()
     for n in 2..10
     {
         let (state_rnd, scram_move) = RubiksCubeState::rnd_scramble(n, 100);
-        let mut state_rnd_as_2x2x2 = RubiksCubeState::from_corners_to_2x2x2(&state_rnd);
+        for n_new in ((if n%2==1 {2} else {1})..=(if n%2==1 {n} else {n/2})).map(|v| if n%2==1 {v} else {v*2})
+        {
+            //println!("n: {}, n_new: {}", n, n_new);
+            let mut state_rnd_as_smallercube = RubiksCubeState::from_outer_to_smaller_cube_size(&state_rnd, n_new);
 
-        let soln_move_orig_cube = scram_move.invert();
-        let soln_move_2x2x2 = soln_move_orig_cube.change_cube_size_hold_face(2);
+            let soln_move_orig_cube = scram_move.clone().invert();
+            let soln_move_smaller_cube = soln_move_orig_cube.change_cube_size_hold_face(n_new);
 
-        state_rnd_as_2x2x2.do_move(&soln_move_2x2x2);
+            state_rnd_as_smallercube.do_move(&soln_move_smaller_cube);
 
-        assert_eq!(state_rnd_as_2x2x2.is_solved(), true);
-        
-        let scram_move_2x2x2 = Move::rnd_move(2, 100);
-        let solve_move_orig = scram_move_2x2x2.clone().invert();
-        let scram_move_nxnxn = scram_move_2x2x2.change_cube_size_hold_center(n);
-        let solve_move_nxnxn = solve_move_orig.change_cube_size_hold_center(n);
-        let mut state_rnd = RubiksCubeState::std_solved_nxnxn(n);
-        state_rnd.do_move(&scram_move_nxnxn);
-        state_rnd.do_move(&solve_move_nxnxn);
+            assert_eq!(state_rnd_as_smallercube.is_solved(), true);
+            
+            let scram_move_sc = Move::rnd_move(n_new, 100);
+            let solve_move_orig = scram_move_sc.clone().invert();
+            let scram_move_nxnxn = scram_move_sc.clone().change_cube_size_hold_face(n);
+            let solve_move_nxnxn = solve_move_orig.clone().change_cube_size_hold_face(n);
+            let mut state_sc = RubiksCubeState::std_solved_nxnxn(n_new);
+            let mut state_nxnxn = RubiksCubeState::std_solved_nxnxn(n);
+            state_sc.do_move(&scram_move_sc);
+            state_nxnxn.do_move(&scram_move_nxnxn);
 
-        assert_eq!(state_rnd.is_solved(), true);
+            let mut state_nxnxn_as_smallercube = RubiksCubeState::from_outer_to_smaller_cube_size(&state_nxnxn, n_new);
+
+            assert_eq!(state_sc, state_nxnxn_as_smallercube);
+
+            state_nxnxn.do_move(&solve_move_nxnxn);
+            state_sc.do_move(&solve_move_orig);
+            state_nxnxn_as_smallercube.do_move(&solve_move_orig);
+
+            assert_eq!(state_nxnxn.is_solved(), true);
+            assert_eq!(state_sc.is_solved(), true);
+            assert_eq!(state_nxnxn_as_smallercube.is_solved(), true);
+        }
     }
 }
 
