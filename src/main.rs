@@ -24,9 +24,10 @@ fn solve_given(show_cubes: bool)
     // let res0 = solver.solver_2x2x2_heuristics_table(14);
     // println!("Found {:?} turn solution: {}", res0.clone().1.map(|l| l.turns.len()), res0.1.unwrap());
 
-    let mut solver = RubiksCubeSolver::from_state(rubiks::RubiksCubeState::std_solved_nxnxn(2));
+    //let mut solver = RubiksCubeSolver::from_state(rubiks::RubiksCubeState::std_solved_nxnxn(2));
+    let mut solver = RubiksCubeSolver::new();
     let t0 = Instant::now();
-    solver.calc_heuristics_table();
+    solver.calc_new_heuristics_table();
     println!("Done calculating heuristics table in {} secs.", t0.elapsed().as_secs_f64());
 
     loop
@@ -34,6 +35,7 @@ fn solve_given(show_cubes: bool)
         println!("Input cube state:");
 
         let mut input = String::new();
+        let mut input_state;
         match io::stdin().read_line(&mut input)
         {
             Ok(_) => 
@@ -41,9 +43,9 @@ fn solve_given(show_cubes: bool)
                 match rubiks::RubiksCubeState::from_state_string(&input.trim().to_owned()) 
                 {
                     Ok(new_state) => {
-                        solver.change_state(new_state);
-                        println!("We got:\n{:?}", solver.borrow_state());
-                        if show_cubes { rubiks_render::RubikDrawer::from_state(solver.borrow_state().clone()).show(); }
+                        println!("We got:\n{:?}", &new_state);
+                        if show_cubes { rubiks_render::RubikDrawer::from_state(new_state.clone()).show(); }
+                        input_state = new_state;
                     },
                     Err(e) => {
                         println!("Failed to read state, error: {}", e);
@@ -51,20 +53,20 @@ fn solve_given(show_cubes: bool)
                     }
                 }
 
-                if solver.borrow_state().size() == 2
+                if input_state.size() == 2
                 {
-                    match solver.solver_2x2x2_heuristics_table(14)
+                    match solver.solver_2x2x2_with_heuristics_table(&input_state)
                     {
-                        (true, Some(the_move)) => println!("Solution: {}", the_move),
-                        _ => println!("No Solution"),
+                        Ok(the_move) => println!("Solution: {}", the_move),
+                        Err(err) => println!("No Solution: {:?}", err),
                     }
                 }
                 else
                 {
-                    match solver.solve_dpll(15)
+                    match solver.solve_dpll(&input_state, 10)
                     {
-                        (true, Some(the_move)) => println!("Solution: {}", the_move),
-                        _ => println!("No Solution"),
+                        Ok(the_move) => println!("Solution: {}", the_move),
+                        Err(err) => println!("No Solution: {:?}", err),
                     }
                 }
             }
@@ -75,7 +77,8 @@ fn solve_given(show_cubes: bool)
 
 fn quick_and_dirty_rend()
 {
-    let mut state = rubiks::RubiksCubeState::std_solved_nxnxn(3);
+    let mut state = rubiks::RubiksCubeState::std_solved_nxnxn(5);
+    rubiks_render::RubikDrawer::from_state(state.clone()).show();
 
     let the_move = rubiks::Move{turns: vec![rubiks::Turn::FaceBased{face: rubiks::Face::Up, inv: true, num_in:0, cube_size: 3},
                                             rubiks::Turn::FaceBased{face: rubiks::Face::Front, inv: true,  num_in:0, cube_size: 3},
@@ -202,32 +205,32 @@ fn main()
     // r_state.turn(rubiks::Face::Up, false, 0);
     // r_state.turn(rubiks::Face::Down, false, 0);
 
-    let (r_state, turns) = rubiks::RubiksCubeState::rnd_scramble(3, 100);
-    println!("{}\n{:?}", turns, r_state);
-    let mut solver = RubiksCubeSolver::from_state(r_state);
+    // let (r_state, turns) = rubiks::RubiksCubeState::rnd_scramble(3, 100);
+    // println!("{}\n{:?}", turns, r_state);
+    let mut solver = RubiksCubeSolver::new();
     let mut t0 = Instant::now();
-    solver.calc_heuristics_table();
+    solver.calc_new_heuristics_table();
     println!("Done calculating heuristics table in {} secs.", t0.elapsed().as_secs_f64());
 
-    t0 = Instant::now();
-    let res1 = solver.solve_dpll(15);
-    println!("Found solution in {} secs.\n{:?}", t0.elapsed().as_secs_f64(), res1);
-    t0 = Instant::now();
-    let res12 = solver.new_solve_dpll(15);
-    println!("Found solution in {} secs.\n{:?}", t0.elapsed().as_secs_f64(), res12);
-    if let (_, Some(r)) = res1
-    {
-        println!("{}", r);
-    }
+    // t0 = Instant::now();
+    // let res1 = solver.solve_dpll(15);
+    // println!("Found solution in {} secs.\n{:?}", t0.elapsed().as_secs_f64(), res1);
+    // t0 = Instant::now();
+    // let res12 = solver.new_solve_dpll(15);
+    // println!("Found solution in {} secs.\n{:?}", t0.elapsed().as_secs_f64(), res12);
+    // if let (_, Some(r)) = res1
+    // {
+    //     println!("{}", r);
+    // }
 
-    t0 = Instant::now();
-    let res2 = solver.solve_dpll(20);
-    println!("Found solution in {} secs.\n{:?}", t0.elapsed().as_secs_f64(), res2);
-    t0 = Instant::now();
-    let res22 = solver.new_solve_dpll(20);
-    println!("Found solution in {} secs.\n{:?}", t0.elapsed().as_secs_f64(), res22);
-    if let (_, Some(r)) = res2
-    {
-        println!("{}", r);
-    }
+    // t0 = Instant::now();
+    // let res2 = solver.solve_dpll(20);
+    // println!("Found solution in {} secs.\n{:?}", t0.elapsed().as_secs_f64(), res2);
+    // t0 = Instant::now();
+    // let res22 = solver.new_solve_dpll(20);
+    // println!("Found solution in {} secs.\n{:?}", t0.elapsed().as_secs_f64(), res22);
+    // if let (_, Some(r)) = res2
+    // {
+    //     println!("{}", r);
+    // }
 }

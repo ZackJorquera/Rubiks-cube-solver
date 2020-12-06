@@ -221,7 +221,7 @@ impl RubikDrawer
             {
                 match waitpid(child, None)
                 {
-                    Ok(status) => println!("{:?}", status),
+                    Ok(status) => (),//println!("{:?}", status),
                     Err(err) => println!("{:?}", err),
                 };
             }
@@ -291,7 +291,7 @@ impl RubikDrawer
     #[cfg(target_family = "windows")]
     pub fn show(&self) -> !
     {
-        println!("To use `show` that doesn't exist, use linux. Im too lazy to write good code. sorry.");
+        println!("To use `show` that doesn't exit right after, use linux. Im too lazy to write good code. sorry.");
 
         let event_loop = glutin::event_loop::EventLoop::new();
         let wb = glutin::window::WindowBuilder::new()
