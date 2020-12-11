@@ -46,7 +46,7 @@ use std::io;//::{Error, ErrorKind, Result};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Face
 {
-    Up,
+    Up = 0,
     Left,
     Front,
     Right,
@@ -566,48 +566,22 @@ impl Hash for RubiksCubeState
     /// We dont care about the bottom back right cubie. Only works for 2x2x2 cubes
     fn hash<H: Hasher>(&self, state: &mut H)
     {
-        if self.n != 2 { unimplemented!() }
-
-        // we hash such that bottom left cube is b-o-y color
-        if self.data[15] == Color::Blue && self.data[18] == Color::Orange && self.data[23] == Color::Yellow
+        let mut new_cube = self.clone();
+        if self.n == 2
         {
-            // oriented correctly
-            for c in &self.data
-            {
-                c.hash(state);
-            }
-            return;
+            new_cube.rotate_to_normal_2x2x2();
         }
-        else
+        else if self.n % 2 == 0
         {
-            let mut new_cube = self.clone();
-            // I know this try the same rotation multiple times but I don't care
-            for _ in 0..4
-            {
-                for _ in 0..4
-                {
-                    for _ in 0..4
-                    {
-                        if new_cube.data[15] == Color::Blue &&
-                           new_cube.data[18] == Color::Orange &&
-                           new_cube.data[23] == Color::Yellow
-                        {
-                            // oriented correctly
-                            for c in &new_cube.data
-                            {
-                                c.hash(state);
-                            }
-                            return;
-                        }
-                        new_cube.rotate_cube(Axis::Z);
-                    }
-                    new_cube.rotate_cube(Axis::Y);
-                }
-                new_cube.rotate_cube(Axis::X);
-            }
+            // I haven't really tested this yet
+            // TODO: remove the == 2 case
+            new_cube.rotate_corner_to((Color::Blue, Color::Orange, Color::Yellow), (Face::Right, Face::Back, Face::Down));
         }
-
-        unimplemented!();
+        
+        for c in &new_cube.data
+        {
+            c.hash(state);
+        }
     }
 }
 
@@ -1166,6 +1140,107 @@ impl RubiksCubeState
             self.rotate_cube(Axis::X);
         }
     }
+
+    pub fn rotate_corner_to(&mut self, corner: (Color, Color, Color), to: (Face, Face, Face))
+    {
+        let n = self.n;
+        let mut l = vec![to.0, to.1, to.2];
+        let l2 = l.clone();
+        l.sort_by_key(|v| *v as usize);
+        let perm = (l.iter().position(|&x| x == l2[0]).unwrap(), l.iter().position(|&x| x == l2[1]).unwrap(), l.iter().position(|&x| x == l2[2]).unwrap());
+        
+        let (di1, di2, di3) = match (l[0], l[1], l[2])
+        {
+            // Top corners
+            (Face::Up, Face::Left, Face::Front) => {
+                let data = vec![n * (n-1), n*n+n-1, 2*n*n];
+                (data[perm.0],data[perm.1],data[perm.2])
+            },
+            (Face::Up, Face::Left, Face::Back) => {
+                let data = vec![0, n*n, 4*n*n+n-1];
+                (data[perm.0],data[perm.1],data[perm.2])
+            },
+            (Face::Up, Face::Front, Face::Right) => {
+                let data = vec![n*n-1, 2*n*n+n-1, 3*n*n];
+                (data[perm.0],data[perm.1],data[perm.2])
+            },
+            (Face::Up, Face::Right, Face::Back) => {
+                let data = vec![n-1, 3*n*n+n-1, 4*n*n];
+                (data[perm.0],data[perm.1],data[perm.2])
+            },
+            // Bottom
+            (Face::Left, Face::Front, Face::Down) => {
+                let data = vec![2*n*n-1, 2*n*n+n*(n-1), 5*n*n];
+                (data[perm.0],data[perm.1],data[perm.2])
+            },
+            (Face::Left, Face::Back, Face::Down) => {
+                let data = vec![n*n+n*(n-1), 4*n*n+n-1, 6*n*n - 1];
+                (data[perm.0],data[perm.1],data[perm.2])
+            },
+            (Face::Front, Face::Right, Face::Down) => {
+                let data = vec![3*n*n - 1, 3*n*n+n*(n-1), 5*n*n+n-1];
+                (data[perm.0],data[perm.1],data[perm.2])
+            },
+            (Face::Right, Face::Back, Face::Down) => {
+                let data = vec![4*n*n-1, 4*n*n+n*(n-1), 6*n*n-1];
+                (data[perm.0],data[perm.1],data[perm.2])
+            },
+            _ => todo!()
+        };
+
+        // TODO: find better algorithm
+        for _ in 0..4
+        {
+            for _ in 0..4
+            {
+                for _ in 0..4
+                {
+                    if self.data[di1] == corner.0 &&
+                        self.data[di2] == corner.1 &&
+                        self.data[di3] == corner.2
+                    {
+                        return;
+                    }
+                    self.rotate_cube(Axis::Z);
+                }
+                self.rotate_cube(Axis::Y);
+            }
+            self.rotate_cube(Axis::X);
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn rotate_middle_edge_to(&mut self, edge: (Color, Color), to: (Face, Face))
+    {
+        assert_eq!(self.n % 2, 1); // is odd
+        todo!();
+
+        // for _ in 0..4
+        // {
+        //     for _ in 0..4
+        //     {
+        //         for _ in 0..4
+        //         {
+        //             if self.data[15] == edge.0 &&
+        //                 self.data[18] == edge.1
+        //             {
+        //                 return;
+        //             }
+        //             self.rotate_cube(Axis::Z);
+        //         }
+        //         self.rotate_cube(Axis::Y);
+        //     }
+        //     self.rotate_cube(Axis::X);
+        // }
+
+        // todo!()
+    }
+
+    #[allow(dead_code)]
+    pub fn rotate_face_to(&mut self, face: Color, to: Face)
+    {
+        todo!()
+    }
 }
 
 #[test]
@@ -1423,5 +1498,17 @@ fn doc_tester()
 
     state.do_move(&three_turn_move);
 
+    println!("{:?}", state);
+}
+
+#[test]
+fn test_rotates()
+{
+    // TODO: write better test
+    let mut state = RubiksCubeState::std_solved_nxnxn(3);
+    println!("{:?}", state);
+    state.rotate_corner_to((Color::White, Color::Red, Color::Green), (Face::Right, Face::Back, Face::Down));
+    println!("{:?}", state);
+    state.rotate_corner_to((Color::Blue, Color::Orange, Color::Yellow), (Face::Right, Face::Back, Face::Down));
     println!("{:?}", state);
 }

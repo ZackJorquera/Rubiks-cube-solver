@@ -1,4 +1,5 @@
 // TODO: make lib
+use statrs::statistics::Statistics;
 
 mod rubiks;
 mod solver;
@@ -9,6 +10,72 @@ use solver::RubiksCubeSolver;
 use std::time::Instant;
 
 use std::io;
+
+fn time_solves()
+{
+    // time heuristics table
+    let ths = Instant::now();
+    for _ in 0..9
+    {
+        solver::HeuristicsTables::new().calc_corner_heuristics_table();
+    }
+    let mut htable = solver::HeuristicsTables::new();
+    htable.calc_corner_heuristics_table();
+    let htime = ths.elapsed().as_secs_f64() / 10.0;
+    println!("time to calc corner heuristics table: {}", htime);
+
+    let mut rsolver = solver::RubiksCubeSolver::new();
+    rsolver.add_heuristics_table(htable);
+
+    let mut idastar_times: Vec<Vec<f64>> = vec![];
+    let mut dpll_times: Vec<Vec<f64>> = vec![];
+    let mut dpllp2_times: Vec<Vec<f64>> = vec![];
+
+    println!("m,k,2,3,4,5,6,7,8,9,10");
+
+    for k in 0..15
+    {
+        let mut idastar_times_for_k: Vec<f64> = vec![];
+        let mut dpll_times_for_k: Vec<f64> = vec![];
+        let mut dpllp2_times_for_k: Vec<f64> = vec![];
+        for n in 2..=7
+        {
+            let mut idastar_times_for_runs: Vec<f64> = vec![];
+            let mut dpll_times_for_runs: Vec<f64> = vec![];
+            let mut dpllp2_times_for_runs: Vec<f64> = vec![];
+            for _ in 0..10
+            {
+                let (state, _) = rubiks::RubiksCubeState::rnd_scramble(n, k);
+
+                let tidass = Instant::now();
+                let _ = rsolver.solve_with_idastar(&state);
+                idastar_times_for_runs.push(tidass.elapsed().as_secs_f64());
+
+                let dplls = Instant::now();
+                let _ = rsolver.solve_dpll(&state, k);
+                dpll_times_for_runs.push(dplls.elapsed().as_secs_f64());
+
+                if n <= 5
+                {
+                    let dpllp2s = Instant::now();
+                    let _ = rsolver.solve_dpll(&state, k+2);
+                    dpllp2_times_for_runs.push(dpllp2s.elapsed().as_secs_f64());
+                }
+            }
+            idastar_times_for_k.push(idastar_times_for_runs.mean());
+            dpll_times_for_k.push(dpll_times_for_runs.mean());
+            dpllp2_times_for_k.push(dpllp2_times_for_runs.mean());
+        }
+        println!("ida*,{}{}", k, idastar_times_for_k.iter().fold(String::from(""), |s, e| format!("{},{}", s, e)));
+        idastar_times.push(idastar_times_for_k);
+
+        println!("dpll,{}{}", k, dpll_times_for_k.iter().fold(String::from(""), |s, e| format!("{},{}", s, e)));
+        dpll_times.push(dpll_times_for_k);
+
+        println!("dpllp2,{}{}", k, dpllp2_times_for_k.iter().fold(String::from(""), |s, e| format!("{},{}", s, e)));
+        dpllp2_times.push(dpllp2_times_for_k);
+    }
+}
 
 fn solve_given(show_cubes: bool)
 {
@@ -33,7 +100,7 @@ fn solve_given(show_cubes: bool)
         println!("Input cube state:");
 
         let mut input = String::new();
-        let mut input_state;
+        let input_state;
         match io::stdin().read_line(&mut input)
         {
             Ok(_) => 
@@ -54,14 +121,6 @@ fn solve_given(show_cubes: bool)
                 if input_state.size() == 2
                 {
                     match solver.solver_2x2x2_with_heuristics_table(&input_state)
-                    {
-                        Ok(the_move) => println!("Solution: {}", the_move),
-                        Err(err) => println!("No Solution: {:?}", err),
-                    }
-                }
-                else if input_state.size() == 3
-                {
-                    match solver.solve_with_idastar_3x3x3(&input_state)
                     {
                         Ok(the_move) => println!("Solution: {}", the_move),
                         Err(err) => println!("No Solution: {:?}", err),
@@ -185,6 +244,8 @@ fn test_draw()
 
 fn main() 
 {
+    time_solves();
+
     let show_cubes = std::env::args().nth(1).map(|s| s.to_lowercase().contains("show")) == Some(true);
 
     if show_cubes
@@ -215,7 +276,7 @@ fn main()
     // let (r_state, turns) = rubiks::RubiksCubeState::rnd_scramble(3, 100);
     // println!("{}\n{:?}", turns, r_state);
     let mut solver = RubiksCubeSolver::new();
-    let mut t0 = Instant::now();
+    let t0 = Instant::now();
     solver.calc_new_heuristics_table();
     println!("Done calculating heuristics table in {} secs.", t0.elapsed().as_secs_f64());
 

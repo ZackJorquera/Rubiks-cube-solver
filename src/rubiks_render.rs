@@ -221,7 +221,7 @@ impl RubikDrawer
             {
                 match waitpid(child, None)
                 {
-                    Ok(status) => (),//println!("{:?}", status),
+                    Ok(_status) => (),//println!("{:?}", status),
                     Err(err) => println!("{:?}", err),
                 };
             }
