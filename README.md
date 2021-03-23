@@ -1,2 +1,2 @@
 # Rubik's Cube Solver
-TODO
+Read [CSCI5114Project.pdf](CSCI5114Project.pdf)
